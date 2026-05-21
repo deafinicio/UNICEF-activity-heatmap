@@ -1,1 +1,58 @@
-
+{
+  "activity_groups": [
+    {
+      "id": "distributions",
+      "label": "Distributions",
+      "activity_types": [
+        "WASH",
+        "Kharkiv Transit Center",
+        "Emergency",
+        "Lozova Transit Center",
+        "Healthcare facility",
+        "Chernihivske Transit Center",
+        "Institution",
+        "Points of invincibility"
+      ]
+    },
+    {
+      "id": "emergency_team",
+      "label": "Emergency Team",
+      "activity_types": []
+    },
+    {
+      "id": "mobile_medical_teams",
+      "label": "Mobile medical teams",
+      "activity_types": []
+    },
+    {
+      "id": "cash_assistance",
+      "label": "Cash assistance",
+      "activity_types": []
+    },
+    {
+      "id": "training_sessions",
+      "label": "Training sessions",
+      "activity_types": []
+    },
+    {
+      "id": "repair",
+      "label": "Repair",
+      "activity_types": []
+    }
+  ],
+  "assistance_types": [
+    "Children on the Move, KIT",
+    "Emergency Hygiene Kit",
+    "Hygiene Kit for People on the move",
+    "Hygiene Kit for PSN-D",
+    "Hygiene kit, people w/special need, type A",
+    "Hygiene kit, people w/special need, type B",
+    "Instit, hygiene Kit, IHK-Type C",
+    "Instit, hygiene Kit, IHK-Type S",
+    "Institutional Hygiene Kit for Healthcare Facilities, 3 months",
+    "NFI KITS EMERGENCY",
+    "Ukraine hygiene kit - Local",
+    "Ukraine hygiene kit - Local (UK)",
+    "Water, drinking, PET plastic bottle, 6L"
+  ]
+}
