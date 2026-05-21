@@ -1,1 +1,40 @@
-
+{
+  "default_metric": "event_count",
+  "metrics": [
+    {
+      "id": "event_count",
+      "label": "Events",
+      "field": "event_count"
+    },
+    {
+      "id": "people_total",
+      "label": "People reached",
+      "field": "people_total"
+    },
+    {
+      "id": "kits_total",
+      "label": "Kits distributed",
+      "field": "kits_total"
+    },
+    {
+      "id": "children_total",
+      "label": "Children",
+      "field": "children_total"
+    },
+    {
+      "id": "adults_total",
+      "label": "Adults",
+      "field": "adults_total"
+    },
+    {
+      "id": "households_total",
+      "label": "Households",
+      "field": "households_total"
+    },
+    {
+      "id": "consultations_total",
+      "label": "Consultations",
+      "field": "consultations_total"
+    }
+  ]
+}
