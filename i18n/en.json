@@ -14,8 +14,6 @@
   "filters": {
     "dateFrom": "Date from",
     "dateTo": "Date to",
-    "dateFrom": "Date from",
-    "dateTo": "Date to",
     "activityGroup": "Activity group",
     "activityType": "Activity type",
     "assistanceType": "Assistance type",
