@@ -1,0 +1,69 @@
+{
+  "app": {
+    "title": "UNICEF Activity Heatmap",
+    "subtitle": "Мапа активностей у межах спільного проєкту з UNICEF"
+  },
+  "buttons": {
+    "applyFilters": "Застосувати фільтри",
+    "resetFilters": "Скинути фільтри",
+    "refreshData": "Оновити дані",
+    "exportPng": "Експорт PNG",
+    "settings": "Налаштування",
+    "showHideFilters": "Показати / сховати фільтри"
+  },
+  "filters": {
+    "dateFrom": "Період від",
+    "dateTo": "Період до",
+    "activityGroup": "Напрямок активності",
+    "activityType": "Тип активності",
+    "assistanceType": "Тип допомоги",
+    "metric": "Показник",
+    "raion": "Район",
+    "hromada": "Громада",
+    "settlement": "Населений пункт",
+    "gender": "Стать",
+    "ageGroup": "Вікова група",
+    "all": "Усі"
+  },
+  "activityGroups": {
+    "distributions": "Дистрибуції",
+    "emergency_team": "Emergency Team",
+    "mobile_medical_teams": "Мобільні медичні команди",
+    "cash_assistance": "Грошова допомога",
+    "training_sessions": "Навчальні сесії",
+    "repair": "Ремонт"
+  },
+  "metrics": {
+    "event_count": "Події",
+    "people_total": "Охоплено людей",
+    "kits_total": "Видано наборів",
+    "children_total": "Діти",
+    "adults_total": "Дорослі",
+    "households_total": "Домогосподарства",
+    "consultations_total": "Консультації"
+  },
+  "gender": {
+    "all": "Усі",
+    "female": "Жінки",
+    "male": "Чоловіки"
+  },
+  "ageGroups": {
+    "all": "Усі",
+    "age_0_4_total": "0–4 р.",
+    "age_5_9_total": "5–9 р.",
+    "age_10_14_total": "10–14 р.",
+    "age_15_17_total": "15–17 р.",
+    "age_18_plus_total": "18+"
+  },
+  "popup": {
+    "date": "Дата",
+    "activityGroup": "Напрямок",
+    "activityType": "Тип активності",
+    "assistanceType": "Тип допомоги",
+    "people": "Людей",
+    "kits": "Наборів",
+    "households": "Домогосподарств",
+    "consultations": "Консультацій",
+    "comment": "Коментар"
+  }
+}
