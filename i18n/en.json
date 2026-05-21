@@ -1,0 +1,69 @@
+{
+  "app": {
+    "title": "UNICEF Activity Heatmap",
+    "subtitle": "Activity map within the joint UNICEF project"
+  },
+  "buttons": {
+    "applyFilters": "Apply filters",
+    "resetFilters": "Reset filters",
+    "refreshData": "Refresh data",
+    "exportPng": "Export PNG",
+    "settings": "Settings",
+    "showHideFilters": "Show / hide filters"
+  },
+  "filters": {
+    "dateFrom": "Date from",
+    "dateTo": "Date to",
+    "activityGroup": "Activity group",
+    "activityType": "Activity type",
+    "assistanceType": "Assistance type",
+    "metric": "Metric",
+    "raion": "District",
+    "hromada": "Community",
+    "settlement": "Settlement",
+    "gender": "Gender",
+    "ageGroup": "Age group",
+    "all": "All"
+  },
+  "activityGroups": {
+    "distributions": "Distributions",
+    "emergency_team": "Emergency Team",
+    "mobile_medical_teams": "Mobile medical teams",
+    "cash_assistance": "Cash assistance",
+    "training_sessions": "Training sessions",
+    "repair": "Repair"
+  },
+  "metrics": {
+    "event_count": "Events",
+    "people_total": "People reached",
+    "kits_total": "Kits distributed",
+    "children_total": "Children",
+    "adults_total": "Adults",
+    "households_total": "Households",
+    "consultations_total": "Consultations"
+  },
+  "gender": {
+    "all": "All",
+    "female": "Female",
+    "male": "Male"
+  },
+  "ageGroups": {
+    "all": "All",
+    "age_0_4_total": "0–4",
+    "age_5_9_total": "5–9",
+    "age_10_14_total": "10–14",
+    "age_15_17_total": "15–17",
+    "age_18_plus_total": "18+"
+  },
+  "popup": {
+    "date": "Date",
+    "activityGroup": "Activity group",
+    "activityType": "Activity type",
+    "assistanceType": "Assistance type",
+    "people": "People",
+    "kits": "Kits",
+    "households": "Households",
+    "consultations": "Consultations",
+    "comment": "Comment"
+  }
+}
