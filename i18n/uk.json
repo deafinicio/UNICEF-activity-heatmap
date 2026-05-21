@@ -12,7 +12,7 @@
     "showHideFilters": "Показати / сховати фільтри"
   },
   "filters": {
-    "dateFrom": "Період від",
+    "label-date-from": "Період від",
     "dateTo": "Період до",
     "dateFrom": "Період від",
     "dateTo": "Період до",
