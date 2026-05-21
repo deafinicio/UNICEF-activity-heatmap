@@ -14,6 +14,8 @@
   "filters": {
     "dateFrom": "Період від",
     "dateTo": "Період до",
+    "dateFrom": "Період від",
+    "dateTo": "Період до",
     "activityGroup": "Напрямок активності",
     "activityType": "Тип активності",
     "assistanceType": "Тип допомоги",
