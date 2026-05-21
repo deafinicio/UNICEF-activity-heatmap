@@ -69,6 +69,12 @@
     border-radius: 6px;
     font-size: 13px;
   }
+
+  .status-line {
+    margin-top: 8px;
+    font-size: 12px;
+    color: #555;
+  }
 </style>
 </head>
 
@@ -87,6 +93,9 @@ const PATHS = {
   i18nUk: "i18n/uk.json",
   i18nEn: "i18n/en.json"
 };
+
+const APPS_SCRIPT_DATA_URL =
+  "https://script.google.com/macros/s/AKfycbw6ixPdp0tgPCH7dk4UYlZilgyZqHG4kwBw-e2RE3-WY8QaagZ_1uGUUVlcd5pyeSIfSg/exec";
 
 let lang = localStorage.getItem("lang") || "uk";
 let t = {};
@@ -150,6 +159,30 @@ function normalizeText(value) {
     .replace(/\s+/g, " ");
 }
 
+function normalizeDateValue(value) {
+  if (!value) return "";
+
+  if (typeof value === "string") {
+    if (/^\d{4}-\d{2}-\d{2}/.test(value)) {
+      return value.slice(0, 10);
+    }
+
+    const parsed = new Date(value);
+    if (!isNaN(parsed.getTime())) {
+      return parsed.toISOString().slice(0, 10);
+    }
+
+    return value;
+  }
+
+  const parsed = new Date(value);
+  if (!isNaN(parsed.getTime())) {
+    return parsed.toISOString().slice(0, 10);
+  }
+
+  return "";
+}
+
 function getText(path, fallback = "") {
   return path.split(".").reduce((obj, key) => obj && obj[key], t) || fallback;
 }
@@ -166,62 +199,70 @@ function getMetricLabel(id) {
   return getText("metrics." + id, id);
 }
 
-function buildDemoActivities() {
-  // Тимчасові демо-дані для перевірки логіки мапи.
-  // Пізніше їх замінить Google Sheets / Apps Script.
-  return [
-    {
-      activity_date: "2026-03-01",
-      activity_group: "distributions",
-      activity_type: "WASH",
-      assistance_type: "Emergency Hygiene Kit",
-      raion: "Харківський",
-      hromada: "Харківська",
-      settlement: "Харків",
-      event_count: 1,
-      people_total: 120,
-      kits_total: 40,
-      children_total: 35,
-      adults_total: 85,
-      households_total: 0,
-      consultations_total: 0,
-      comment: "Demo distribution record"
-    },
-    {
-      activity_date: "2026-03-04",
-      activity_group: "distributions",
-      activity_type: "Emergency",
-      assistance_type: "NFI KITS EMERGENCY",
-      raion: "Лозівський",
-      hromada: "Лозівська",
-      settlement: "Лозова",
-      event_count: 1,
-      people_total: 80,
-      kits_total: 25,
-      children_total: 20,
-      adults_total: 60,
-      households_total: 0,
-      consultations_total: 0,
-      comment: "Demo emergency distribution"
-    },
-    {
-      activity_date: "2026-03-07",
-      activity_group: "mobile_medical_teams",
-      activity_type: "Medical consultation",
-      assistance_type: "",
-      raion: "Ізюмський",
-      hromada: "Ізюмська",
-      settlement: "Ізюм",
-      event_count: 1,
-      people_total: 45,
-      kits_total: 0,
-      children_total: 12,
-      adults_total: 33,
-      households_total: 0,
-      consultations_total: 45,
-      comment: "Demo mobile medical team"
-    }
-  ];
+async function loadLiveActivities() {
+  const response = await fetch(APPS_SCRIPT_DATA_URL + "?nocache=" + Date.now());
+
+  if (!response.ok) {
+    throw new Error("Failed to load activities from Google Sheets");
+  }
+
+  const rows = await response.json();
+
+  return Array.isArray(rows)
+    ? rows.map(normalizeActivityRow)
+    : [];
+}
+
+function normalizeActivityRow(row) {
+  return {
+    created_at: row.created_at || "",
+
+    activity_group: row.activity_group || "",
+    activity_type: row.activity_type || "",
+    assistance_type: row.assistance_type || "",
+    activity_date: normalizeDateValue(row.activity_date),
+
+    raion: row.raion || "",
+    hromada: row.hromada || "",
+    settlement: row.settlement || "",
+    location_raw: row.location_raw || "",
+    comment: row.comment || "",
+
+    event_count: safeNumber(row.event_count) || 1,
+
+    people_total: safeNumber(row.people_total),
+    children_total: safeNumber(row.children_total),
+    adults_total: safeNumber(row.adults_total),
+
+    kits_total: safeNumber(row.kits_total),
+    households_total: safeNumber(row.households_total),
+    consultations_total: safeNumber(row.consultations_total),
+    objects_repaired: safeNumber(row.objects_repaired),
+
+    female_0_4: safeNumber(row.female_0_4),
+    male_0_4: safeNumber(row.male_0_4),
+
+    female_5_9: safeNumber(row.female_5_9),
+    male_5_9: safeNumber(row.male_5_9),
+
+    female_10_14: safeNumber(row.female_10_14),
+    male_10_14: safeNumber(row.male_10_14),
+
+    female_15_17: safeNumber(row.female_15_17),
+    male_15_17: safeNumber(row.male_15_17),
+
+    female_18_plus: safeNumber(row.female_18_plus),
+    male_18_plus: safeNumber(row.male_18_plus),
+
+    female_total: safeNumber(row.female_total),
+    male_total: safeNumber(row.male_total),
+
+    age_0_4_total: safeNumber(row.age_0_4_total),
+    age_5_9_total: safeNumber(row.age_5_9_total),
+    age_10_14_total: safeNumber(row.age_10_14_total),
+    age_15_17_total: safeNumber(row.age_15_17_total),
+    age_18_plus_total: safeNumber(row.age_18_plus_total)
+  };
 }
 
 function findSettlementPoint(record) {
@@ -241,7 +282,10 @@ function findSettlementPoint(record) {
 
 function activityToFeature(record) {
   const point = findSettlementPoint(record);
-  if (!point || !point.geometry || !point.geometry.coordinates) return null;
+  if (!point || !point.geometry || !point.geometry.coordinates) {
+    console.warn("Settlement not found in GeoJSON:", record);
+    return null;
+  }
 
   return {
     type: "Feature",
@@ -262,7 +306,6 @@ function getCurrentMetricField() {
 }
 
 function applyFilters() {
-
   const group =
     document.getElementById("activity-group-filter").value;
 
@@ -288,7 +331,6 @@ function applyFilters() {
     dateToValue ? new Date(dateToValue + "T23:59:59") : null;
 
   filteredActivities = activities.filter(item => {
-
     const okGroup =
       !group || item.activity_group === group;
 
@@ -301,7 +343,6 @@ function applyFilters() {
     let okDate = true;
 
     if (item.activity_date) {
-
       const activityDate =
         new Date(item.activity_date + "T12:00:00");
 
@@ -323,7 +364,6 @@ function applyFilters() {
   });
 
   renderMap(filteredActivities, metricField);
-
   updateSummary(filteredActivities, metricField);
 }
 
@@ -356,6 +396,8 @@ function renderMap(records, metricField) {
         ${getText("popup.activityGroup", "Activity group")}: ${getActivityGroupLabel(p.activity_group)}<br>
         ${getText("popup.activityType", "Activity type")}: ${p.activity_type || "—"}<br>
         ${getText("popup.assistanceType", "Assistance type")}: ${p.assistance_type || "—"}<br>
+        ${getText("popup.people", "People")}: ${safeNumber(p.people_total)}<br>
+        ${getText("popup.kits", "Kits")}: ${safeNumber(p.kits_total)}<br>
         <b>${getText("filters.metric", "Metric")}:</b> ${metricValue}
         ${p.comment ? "<br>" + getText("popup.comment", "Comment") + ": " + p.comment : ""}
       `;
@@ -406,7 +448,6 @@ function renderMap(records, metricField) {
 }
 
 function updateSummary(records, metricField) {
-
   const totalEvents =
     records.length;
 
@@ -426,25 +467,29 @@ function updateSummary(records, metricField) {
     records.reduce((sum, item) =>
       sum + safeNumber(item.adults_total), 0);
 
+  const totalHouseholds =
+    records.reduce((sum, item) =>
+      sum + safeNumber(item.households_total), 0);
+
+  const totalConsultations =
+    records.reduce((sum, item) =>
+      sum + safeNumber(item.consultations_total), 0);
+
   const totalMetric =
     records.reduce((sum, item) =>
       sum + getMetricValue(item, metricField), 0);
 
   document.getElementById("summary-box").innerHTML = `
     <b>${getText("summary.events", "Events")}:</b> ${totalEvents}<br>
-
     <b>${getText("summary.people", "People")}:</b> ${totalPeople}<br>
-
     <b>${getText("summary.kits", "Kits")}:</b> ${totalKits}<br>
-
     <b>${getText("summary.children", "Children")}:</b> ${totalChildren}<br>
-
     <b>${getText("summary.adults", "Adults")}:</b> ${totalAdults}<br>
-
+    <b>${getText("summary.households", "Households")}:</b> ${totalHouseholds}<br>
+    <b>${getText("summary.consultations", "Consultations")}:</b> ${totalConsultations}<br>
     <hr>
-
-    <b>${getText("summary.currentMetric", "Current metric")}:</b>
-    ${totalMetric}
+    <b>${getText("summary.currentMetric", "Current metric")}:</b> ${totalMetric}
+    <div class="status-line">${getText("summary.visibleRecords", "Visible records")}: ${records.length}</div>
   `;
 }
 
@@ -491,20 +536,46 @@ function updateActivityTypeOptions() {
 function translateStaticUI() {
   document.documentElement.lang = lang;
 
-  document.getElementById("control-title").textContent = getText("app.title", "UNICEF Activity Heatmap");
+  document.getElementById("control-title").textContent =
+    getText("app.title", "UNICEF Activity Heatmap");
 
-  document.getElementById("label-activity-group").textContent = getText("filters.activityGroup", "Activity group");
-  document.getElementById("label-activity-type").textContent = getText("filters.activityType", "Activity type");
-  document.getElementById("label-assistance-type").textContent = getText("filters.assistanceType", "Assistance type");
-  document.getElementById("label-metric").textContent = getText("filters.metric", "Metric");
+  document.getElementById("label-date-from").textContent =
+    getText("filters.dateFrom", "Date from");
 
-  document.getElementById("apply-filters").textContent = getText("buttons.applyFilters", "Apply filters");
-  document.getElementById("reset-filters").textContent = getText("buttons.resetFilters", "Reset filters");
+  document.getElementById("label-date-to").textContent =
+    getText("filters.dateTo", "Date to");
+
+  document.getElementById("label-activity-group").textContent =
+    getText("filters.activityGroup", "Activity group");
+
+  document.getElementById("label-activity-type").textContent =
+    getText("filters.activityType", "Activity type");
+
+  document.getElementById("label-assistance-type").textContent =
+    getText("filters.assistanceType", "Assistance type");
+
+  document.getElementById("label-metric").textContent =
+    getText("filters.metric", "Metric");
+
+  document.getElementById("apply-filters").textContent =
+    getText("buttons.applyFilters", "Apply filters");
+
+  document.getElementById("reset-filters").textContent =
+    getText("buttons.resetFilters", "Reset filters");
+
+  document.getElementById("refresh-data").textContent =
+    getText("buttons.refreshData", "Refresh data");
 }
 
 async function loadI18n() {
   const url = lang === "uk" ? PATHS.i18nUk : PATHS.i18nEn;
   t = await fetch(url).then(r => r.json());
+}
+
+async function refreshLiveData() {
+  activities = await loadLiveActivities();
+  filteredActivities = activities;
+  applyFilters();
 }
 
 async function init() {
@@ -520,7 +591,7 @@ async function init() {
   activityConfig = groups;
   metricsConfig = metrics;
 
-  activities = buildDemoActivities();
+  activities = await loadLiveActivities();
   filteredActivities = activities;
 
   translateStaticUI();
@@ -534,38 +605,39 @@ control.onAdd = function() {
   const div = L.DomUtil.create("div", "control-box");
 
   div.innerHTML = `
-  <div class="lang-row">
-    <button id="lang-uk">UA</button>
-    <button id="lang-en">EN</button>
-  </div>
+    <div class="lang-row">
+      <button id="lang-uk">UA</button>
+      <button id="lang-en">EN</button>
+    </div>
 
-  <div id="control-title" class="control-title">
-    UNICEF Activity Heatmap
-  </div>
+    <div id="control-title" class="control-title">
+      UNICEF Activity Heatmap
+    </div>
 
-  <label id="label-date-from"></label>
-  <input type="date" id="date-from-filter">
+    <label id="label-date-from"></label>
+    <input type="date" id="date-from-filter">
 
-  <label id="label-date-to"></label>
-  <input type="date" id="date-to-filter">
+    <label id="label-date-to"></label>
+    <input type="date" id="date-to-filter">
 
-  <label id="label-activity-group"></label>
-  <select id="activity-group-filter"></select>
+    <label id="label-activity-group"></label>
+    <select id="activity-group-filter"></select>
 
-  <label id="label-activity-type"></label>
-  <select id="activity-type-filter"></select>
+    <label id="label-activity-type"></label>
+    <select id="activity-type-filter"></select>
 
-  <label id="label-assistance-type"></label>
-  <select id="assistance-type-filter"></select>
+    <label id="label-assistance-type"></label>
+    <select id="assistance-type-filter"></select>
 
-  <label id="label-metric"></label>
-  <select id="metric-filter"></select>
+    <label id="label-metric"></label>
+    <select id="metric-filter"></select>
 
-  <button id="apply-filters"></button>
-  <button id="reset-filters"></button>
+    <button id="apply-filters"></button>
+    <button id="reset-filters"></button>
+    <button id="refresh-data"></button>
 
-  <div id="summary-box" class="summary-box"></div>
-`;
+    <div id="summary-box" class="summary-box"></div>
+  `;
 
   L.DomEvent.disableClickPropagation(div);
   L.DomEvent.disableScrollPropagation(div);
@@ -584,21 +656,27 @@ setTimeout(() => {
   document.getElementById("activity-type-filter").addEventListener("change", applyFilters);
   document.getElementById("assistance-type-filter").addEventListener("change", applyFilters);
   document.getElementById("metric-filter").addEventListener("change", applyFilters);
+  document.getElementById("date-from-filter").addEventListener("change", applyFilters);
+  document.getElementById("date-to-filter").addEventListener("change", applyFilters);
 
   document.getElementById("apply-filters").addEventListener("click", applyFilters);
 
- document.getElementById("reset-filters").addEventListener("click", () => {
-  document.getElementById("date-from-filter").value = "";
-  document.getElementById("date-to-filter").value = "";
+  document.getElementById("refresh-data").addEventListener("click", async () => {
+    await refreshLiveData();
+  });
 
-  document.getElementById("activity-group-filter").value = "";
-  updateActivityTypeOptions();
-  document.getElementById("activity-type-filter").value = "";
-  document.getElementById("assistance-type-filter").value = "";
-  document.getElementById("metric-filter").value = metricsConfig.default_metric;
+  document.getElementById("reset-filters").addEventListener("click", () => {
+    document.getElementById("date-from-filter").value = "";
+    document.getElementById("date-to-filter").value = "";
 
-  applyFilters();
-});
+    document.getElementById("activity-group-filter").value = "";
+    updateActivityTypeOptions();
+    document.getElementById("activity-type-filter").value = "";
+    document.getElementById("assistance-type-filter").value = "";
+    document.getElementById("metric-filter").value = metricsConfig.default_metric;
+
+    applyFilters();
+  });
 
   document.getElementById("lang-uk").addEventListener("click", async () => {
     lang = "uk";
@@ -613,7 +691,11 @@ setTimeout(() => {
   });
 }, 0);
 
-init();
+init().catch(error => {
+  console.error(error);
+  document.getElementById("summary-box").innerHTML =
+    `<b>Initialization error</b><br>${error.message}`;
+});
 </script>
 </body>
 </html>
