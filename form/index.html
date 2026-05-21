@@ -1,1 +1,65 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
 
+<title>UNICEF Activity Form — Kharkiv Oblast</title>
+<meta name="description" content="Form for entering UNICEF-supported activity data in Kharkiv Oblast." />
+
+<link rel="stylesheet" href="styles.css" />
+</head>
+
+<body>
+<main class="page">
+  <section class="card">
+    <div class="topbar">
+      <div>
+        <h1 id="page-title">UNICEF Activity Form</h1>
+        <p id="page-subtitle">Activity data entry form</p>
+      </div>
+
+      <div class="language-switch">
+        <button type="button" id="lang-uk">UA</button>
+        <button type="button" id="lang-en">EN</button>
+      </div>
+    </div>
+
+    <form id="activity-form">
+      <div class="form-section">
+        <label id="activity-group-label" for="activity_group">Activity group</label>
+        <select id="activity_group" name="activity_group" required></select>
+      </div>
+
+      <div id="common-fields"></div>
+
+      <div id="group-fields"></div>
+
+      <details id="demographics-section" class="details-block" open>
+        <summary id="demographics-title">Demographics</summary>
+        <div id="demographics-fields"></div>
+      </details>
+
+      <div class="summary-box">
+        <h2 id="summary-title">Calculated totals</h2>
+        <div id="calculated-summary"></div>
+      </div>
+
+      <div class="actions">
+        <button type="submit" id="submit-btn">Submit</button>
+        <button type="button" id="reset-btn" class="secondary">Reset</button>
+      </div>
+
+      <div id="status-message" class="status"></div>
+    </form>
+  </section>
+
+  <section class="card preview-card">
+    <h2 id="preview-title">Submission preview</h2>
+    <pre id="payload-preview">{}</pre>
+  </section>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>
