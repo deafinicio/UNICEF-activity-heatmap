@@ -1,1 +1,409 @@
-
+{
+  "default_group": "distributions",
+  "common_fields": [
+    {
+      "id": "activity_date",
+      "type": "date",
+      "required": true,
+      "label": {
+        "uk": "Дата активності",
+        "en": "Activity date"
+      }
+    },
+    {
+      "id": "raion",
+      "type": "select",
+      "source": "locations.raions",
+      "required": true,
+      "label": {
+        "uk": "Район",
+        "en": "District"
+      }
+    },
+    {
+      "id": "hromada",
+      "type": "select",
+      "source": "locations.hromadas",
+      "required": true,
+      "depends_on": "raion",
+      "label": {
+        "uk": "Громада",
+        "en": "Community"
+      }
+    },
+    {
+      "id": "settlement",
+      "type": "select",
+      "source": "locations.settlements",
+      "required": true,
+      "depends_on": "hromada",
+      "label": {
+        "uk": "Населений пункт",
+        "en": "Settlement"
+      }
+    },
+    {
+      "id": "location_raw",
+      "type": "text",
+      "required": false,
+      "label": {
+        "uk": "Адреса / уточнення локації",
+        "en": "Address / location details"
+      }
+    },
+    {
+      "id": "comment",
+      "type": "textarea",
+      "required": false,
+      "label": {
+        "uk": "Коментар",
+        "en": "Comment"
+      }
+    }
+  ],
+  "groups": {
+    "distributions": {
+      "label": {
+        "uk": "Дистрибуції",
+        "en": "Distributions"
+      },
+      "fields": [
+        {
+          "id": "activity_type",
+          "type": "select",
+          "required": true,
+          "options": [
+            "WASH",
+            "Kharkiv Transit Center",
+            "Emergency",
+            "Lozova Transit Center",
+            "Healthcare facility",
+            "Chernihivske Transit Center",
+            "Institution",
+            "Points of invincibility"
+          ],
+          "label": {
+            "uk": "Тип активності",
+            "en": "Activity type"
+          }
+        },
+        {
+          "id": "assistance_type",
+          "type": "select",
+          "required": true,
+          "options": [
+            "Children on the Move, KIT",
+            "Emergency Hygiene Kit",
+            "Hygiene Kit for People on the move",
+            "Hygiene Kit for PSN-D",
+            "Hygiene kit, people w/special need, type A",
+            "Hygiene kit, people w/special need, type B",
+            "Instit, hygiene Kit, IHK-Type C",
+            "Instit, hygiene Kit, IHK-Type S",
+            "Institutional Hygiene Kit for Healthcare Facilities, 3 months",
+            "NFI KITS EMERGENCY",
+            "Ukraine hygiene kit - Local",
+            "Ukraine hygiene kit - Local (UK)",
+            "Water, drinking, PET plastic bottle, 6L"
+          ],
+          "label": {
+            "uk": "Тип допомоги / набору",
+            "en": "Assistance / kit type"
+          }
+        },
+        {
+          "id": "kits_total",
+          "type": "number",
+          "required": true,
+          "min": 0,
+          "label": {
+            "uk": "Кількість виданих наборів",
+            "en": "Kits distributed"
+          }
+        },
+        {
+          "id": "people_total",
+          "type": "number",
+          "required": true,
+          "min": 0,
+          "label": {
+            "uk": "Кількість людей, які отримали допомогу",
+            "en": "People reached"
+          }
+        }
+      ]
+    },
+    "emergency_team": {
+      "label": {
+        "uk": "Emergency Team",
+        "en": "Emergency Team"
+      },
+      "fields": [
+        {
+          "id": "children_total",
+          "type": "number",
+          "required": false,
+          "min": 0,
+          "label": {
+            "uk": "Кількість дітей",
+            "en": "Children"
+          }
+        },
+        {
+          "id": "adults_total",
+          "type": "number",
+          "required": false,
+          "min": 0,
+          "label": {
+            "uk": "Кількість дорослих",
+            "en": "Adults"
+          }
+        },
+        {
+          "id": "people_total",
+          "type": "number",
+          "required": false,
+          "min": 0,
+          "label": {
+            "uk": "Загальна кількість людей",
+            "en": "Total people reached"
+          }
+        }
+      ]
+    },
+    "mobile_medical_teams": {
+      "label": {
+        "uk": "Мобільні медичні команди",
+        "en": "Mobile medical teams"
+      },
+      "fields": [
+        {
+          "id": "children_total",
+          "type": "number",
+          "required": false,
+          "min": 0,
+          "label": {
+            "uk": "Кількість дітей",
+            "en": "Children"
+          }
+        },
+        {
+          "id": "consultations_total",
+          "type": "number",
+          "required": false,
+          "min": 0,
+          "label": {
+            "uk": "Кількість консультацій",
+            "en": "Consultations"
+          }
+        },
+        {
+          "id": "specialist",
+          "type": "text",
+          "required": false,
+          "label": {
+            "uk": "Спеціаліст",
+            "en": "Specialist"
+          }
+        }
+      ]
+    },
+    "cash_assistance": {
+      "label": {
+        "uk": "Грошова допомога",
+        "en": "Cash assistance"
+      },
+      "fields": [
+        {
+          "id": "households_total",
+          "type": "number",
+          "required": true,
+          "min": 0,
+          "label": {
+            "uk": "Кількість домогосподарств",
+            "en": "Households reached"
+          }
+        },
+        {
+          "id": "people_total",
+          "type": "number",
+          "required": false,
+          "min": 0,
+          "label": {
+            "uk": "Кількість людей",
+            "en": "People reached"
+          }
+        }
+      ]
+    },
+    "training_sessions": {
+      "label": {
+        "uk": "Навчальні сесії",
+        "en": "Training sessions"
+      },
+      "fields": [
+        {
+          "id": "training_type",
+          "type": "text",
+          "required": true,
+          "label": {
+            "uk": "Тип навчання",
+            "en": "Training type"
+          }
+        },
+        {
+          "id": "people_total",
+          "type": "number",
+          "required": true,
+          "min": 0,
+          "label": {
+            "uk": "Кількість учасників",
+            "en": "Participants"
+          }
+        }
+      ]
+    },
+    "repair": {
+      "label": {
+        "uk": "Ремонт",
+        "en": "Repair"
+      },
+      "fields": [
+        {
+          "id": "repair_type",
+          "type": "text",
+          "required": true,
+          "label": {
+            "uk": "Тип ремонту",
+            "en": "Repair type"
+          }
+        },
+        {
+          "id": "objects_repaired",
+          "type": "number",
+          "required": false,
+          "min": 0,
+          "label": {
+            "uk": "Кількість відремонтованих об’єктів",
+            "en": "Objects repaired"
+          }
+        },
+        {
+          "id": "households_total",
+          "type": "number",
+          "required": false,
+          "min": 0,
+          "label": {
+            "uk": "Кількість домогосподарств",
+            "en": "Households reached"
+          }
+        },
+        {
+          "id": "people_total",
+          "type": "number",
+          "required": false,
+          "min": 0,
+          "label": {
+            "uk": "Кількість людей",
+            "en": "People reached"
+          }
+        }
+      ]
+    }
+  },
+  "demographics": {
+    "enabled": true,
+    "fields": [
+      {
+        "id": "female_0_4",
+        "type": "number",
+        "min": 0,
+        "label": {
+          "uk": "Жінки / дівчата 0–4",
+          "en": "Female 0–4"
+        }
+      },
+      {
+        "id": "male_0_4",
+        "type": "number",
+        "min": 0,
+        "label": {
+          "uk": "Чоловіки / хлопці 0–4",
+          "en": "Male 0–4"
+        }
+      },
+      {
+        "id": "female_5_9",
+        "type": "number",
+        "min": 0,
+        "label": {
+          "uk": "Жінки / дівчата 5–9",
+          "en": "Female 5–9"
+        }
+      },
+      {
+        "id": "male_5_9",
+        "type": "number",
+        "min": 0,
+        "label": {
+          "uk": "Чоловіки / хлопці 5–9",
+          "en": "Male 5–9"
+        }
+      },
+      {
+        "id": "female_10_14",
+        "type": "number",
+        "min": 0,
+        "label": {
+          "uk": "Жінки / дівчата 10–14",
+          "en": "Female 10–14"
+        }
+      },
+      {
+        "id": "male_10_14",
+        "type": "number",
+        "min": 0,
+        "label": {
+          "uk": "Чоловіки / хлопці 10–14",
+          "en": "Male 10–14"
+        }
+      },
+      {
+        "id": "female_15_17",
+        "type": "number",
+        "min": 0,
+        "label": {
+          "uk": "Жінки / дівчата 15–17",
+          "en": "Female 15–17"
+        }
+      },
+      {
+        "id": "male_15_17",
+        "type": "number",
+        "min": 0,
+        "label": {
+          "uk": "Чоловіки / хлопці 15–17",
+          "en": "Male 15–17"
+        }
+      },
+      {
+        "id": "female_18_plus",
+        "type": "number",
+        "min": 0,
+        "label": {
+          "uk": "Жінки 18+",
+          "en": "Female 18+"
+        }
+      },
+      {
+        "id": "male_18_plus",
+        "type": "number",
+        "min": 0,
+        "label": {
+          "uk": "Чоловіки 18+",
+          "en": "Male 18+"
+        }
+      }
+    ]
+  }
+}
