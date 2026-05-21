@@ -30,10 +30,14 @@
       "activity_types": []
     },
     {
-      "id": "training_sessions",
-      "label": "Training sessions",
-      "activity_types": []
-    },
+  "id": "training_sessions",
+  "label": "Training sessions",
+  "activity_types": [
+    "Behavior during shelling",
+    "Mine safety awareness",
+    "First aid basics"
+  ]
+},
     {
       "id": "repair",
       "label": "Repair",
