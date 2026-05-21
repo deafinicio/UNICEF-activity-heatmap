@@ -12,8 +12,6 @@
     "showHideFilters": "Показати / сховати фільтри"
   },
   "filters": {
-    "label-date-from": "Період від",
-    "dateTo": "Період до",
     "dateFrom": "Період від",
     "dateTo": "Період до",
     "activityGroup": "Напрямок активності",
