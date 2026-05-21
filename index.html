@@ -1,1 +1,526 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
 
+<title>UNICEF Activity Heatmap — Kharkiv Oblast</title>
+<meta name="description" content="Interactive activity heatmap for UNICEF-supported activities in Kharkiv Oblast." />
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+
+<style>
+  html, body {
+    height: 100%;
+    margin: 0;
+    font-family: Arial, sans-serif;
+  }
+
+  #map {
+    height: 100vh;
+  }
+
+  .control-box {
+    background: #fff;
+    padding: 10px;
+    border-radius: 8px;
+    box-shadow: 0 1px 6px rgba(0,0,0,.25);
+    font-size: 14px;
+    width: 280px;
+  }
+
+  .control-box label {
+    display: block;
+    margin-top: 8px;
+    font-weight: 600;
+  }
+
+  .control-box select,
+  .control-box input,
+  .control-box button {
+    width: 100%;
+    box-sizing: border-box;
+    margin-top: 4px;
+    padding: 6px;
+  }
+
+  .control-title {
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+
+  .lang-row {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+
+  .lang-row button {
+    width: 50%;
+    cursor: pointer;
+  }
+
+  .summary-box {
+    margin-top: 8px;
+    padding: 8px;
+    background: #f5f5f5;
+    border-radius: 6px;
+    font-size: 13px;
+  }
+</style>
+</head>
+
+<body>
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<script src="https://leaflet.github.io/Leaflet.heat/dist/leaflet-heat.js"></script>
+
+<script>
+const PATHS = {
+  settlements: "data/kharkiv_settlements_points.geojson",
+  activityGroups: "config/activity-groups.json",
+  metrics: "config/metrics.json",
+  i18nUk: "i18n/uk.json",
+  i18nEn: "i18n/en.json"
+};
+
+let lang = localStorage.getItem("lang") || "uk";
+let t = {};
+let activityConfig = null;
+let metricsConfig = null;
+
+let settlementsGeo = null;
+let activities = [];
+let filteredActivities = [];
+
+let clusterLayer = L.markerClusterGroup();
+let heatLayer = null;
+let heatProxy = L.layerGroup();
+
+const map = L.map("map", { zoomControl: true }).setView([49.9935, 36.2304], 8);
+
+const kharkivBounds = L.latLngBounds([[48.5, 34.8], [50.6, 38.3]]);
+map.fitBounds(kharkivBounds);
+
+const osm = L.tileLayer(
+  "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+  {
+    maxZoom: 19,
+    attribution: "&copy; OpenStreetMap"
+  }
+).addTo(map);
+
+const carto = L.tileLayer(
+  "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
+  {
+    maxZoom: 20,
+    attribution: "&copy; OpenStreetMap &copy; CARTO"
+  }
+);
+
+const baseLayers = {
+  "OpenStreetMap": osm,
+  "Carto Voyager": carto
+};
+
+const overlays = {
+  "Clusters": clusterLayer,
+  "Heatmap": heatProxy
+};
+
+L.control.layers(baseLayers, overlays, { collapsed: false }).addTo(map);
+
+map.addLayer(clusterLayer);
+map.addLayer(heatProxy);
+
+function safeNumber(value) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function normalizeText(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[`ʼ']/g, "’")
+    .replace(/\s+/g, " ");
+}
+
+function getText(path, fallback = "") {
+  return path.split(".").reduce((obj, key) => obj && obj[key], t) || fallback;
+}
+
+function getMetricValue(record, metricField) {
+  return safeNumber(record[metricField]);
+}
+
+function getActivityGroupLabel(id) {
+  return getText("activityGroups." + id, id);
+}
+
+function getMetricLabel(id) {
+  return getText("metrics." + id, id);
+}
+
+function buildDemoActivities() {
+  // Тимчасові демо-дані для перевірки логіки мапи.
+  // Пізніше їх замінить Google Sheets / Apps Script.
+  return [
+    {
+      activity_date: "2026-03-01",
+      activity_group: "distributions",
+      activity_type: "WASH",
+      assistance_type: "Emergency Hygiene Kit",
+      raion: "Харківський",
+      hromada: "Харківська",
+      settlement: "Харків",
+      event_count: 1,
+      people_total: 120,
+      kits_total: 40,
+      children_total: 35,
+      adults_total: 85,
+      households_total: 0,
+      consultations_total: 0,
+      comment: "Demo distribution record"
+    },
+    {
+      activity_date: "2026-03-04",
+      activity_group: "distributions",
+      activity_type: "Emergency",
+      assistance_type: "NFI KITS EMERGENCY",
+      raion: "Лозівський",
+      hromada: "Лозівська",
+      settlement: "Лозова",
+      event_count: 1,
+      people_total: 80,
+      kits_total: 25,
+      children_total: 20,
+      adults_total: 60,
+      households_total: 0,
+      consultations_total: 0,
+      comment: "Demo emergency distribution"
+    },
+    {
+      activity_date: "2026-03-07",
+      activity_group: "mobile_medical_teams",
+      activity_type: "Medical consultation",
+      assistance_type: "",
+      raion: "Ізюмський",
+      hromada: "Ізюмська",
+      settlement: "Ізюм",
+      event_count: 1,
+      people_total: 45,
+      kits_total: 0,
+      children_total: 12,
+      adults_total: 33,
+      households_total: 0,
+      consultations_total: 45,
+      comment: "Demo mobile medical team"
+    }
+  ];
+}
+
+function findSettlementPoint(record) {
+  const features = settlementsGeo.features || [];
+
+  const raion = normalizeText(record.raion);
+  const hromada = normalizeText(record.hromada);
+  const settlement = normalizeText(record.settlement);
+
+  return features.find(f => {
+    const p = f.properties || {};
+    return normalizeText(p.raion) === raion &&
+      normalizeText(p.hromada) === hromada &&
+      normalizeText(p.settlement) === settlement;
+  });
+}
+
+function activityToFeature(record) {
+  const point = findSettlementPoint(record);
+  if (!point || !point.geometry || !point.geometry.coordinates) return null;
+
+  return {
+    type: "Feature",
+    geometry: {
+      type: "Point",
+      coordinates: point.geometry.coordinates
+    },
+    properties: record
+  };
+}
+
+function getCurrentMetricField() {
+  const metricId = document.getElementById("metric-filter")?.value ||
+    metricsConfig.default_metric;
+
+  const metric = metricsConfig.metrics.find(m => m.id === metricId);
+  return metric ? metric.field : "event_count";
+}
+
+function applyFilters() {
+  const group = document.getElementById("activity-group-filter").value;
+  const type = document.getElementById("activity-type-filter").value;
+  const assistance = document.getElementById("assistance-type-filter").value;
+  const metricField = getCurrentMetricField();
+
+  filteredActivities = activities.filter(item => {
+    const okGroup = !group || item.activity_group === group;
+    const okType = !type || item.activity_type === type;
+    const okAssistance = !assistance || item.assistance_type === assistance;
+
+    return okGroup && okType && okAssistance;
+  });
+
+  renderMap(filteredActivities, metricField);
+  updateSummary(filteredActivities, metricField);
+}
+
+function renderMap(records, metricField) {
+  clusterLayer.clearLayers();
+
+  if (heatLayer) {
+    heatLayer.setLatLngs([]);
+  }
+
+  const features = records.map(activityToFeature).filter(Boolean);
+
+  const geo = {
+    type: "FeatureCollection",
+    features
+  };
+
+  const markers = L.geoJSON(geo, {
+    pointToLayer: function(feature, latlng) {
+      return L.marker(latlng);
+    },
+    onEachFeature: function(feature, layer) {
+      const p = feature.properties || {};
+      const metricValue = getMetricValue(p, metricField);
+
+      const html = `
+        <b>${p.settlement || ""}</b><br>
+        ${p.hromada || ""}, ${p.raion || ""}<br>
+        ${getText("popup.date", "Date")}: ${p.activity_date || "—"}<br>
+        ${getText("popup.activityGroup", "Activity group")}: ${getActivityGroupLabel(p.activity_group)}<br>
+        ${getText("popup.activityType", "Activity type")}: ${p.activity_type || "—"}<br>
+        ${getText("popup.assistanceType", "Assistance type")}: ${p.assistance_type || "—"}<br>
+        <b>${getText("filters.metric", "Metric")}:</b> ${metricValue}
+        ${p.comment ? "<br>" + getText("popup.comment", "Comment") + ": " + p.comment : ""}
+      `;
+
+      layer.bindPopup(html);
+    }
+  });
+
+  clusterLayer.addLayer(markers);
+
+  let maxValue = 0;
+  features.forEach(feature => {
+    maxValue = Math.max(maxValue, getMetricValue(feature.properties, metricField));
+  });
+
+  if (maxValue <= 0) maxValue = 1;
+
+  const heatData = features.map(feature => {
+    const coords = feature.geometry.coordinates;
+    const value = getMetricValue(feature.properties, metricField);
+    const intensity = Math.max(0.15, Math.min(1, Math.sqrt(value / maxValue)));
+
+    return [coords[1], coords[0], intensity];
+  });
+
+  if (!heatLayer) {
+    heatLayer = L.heatLayer(heatData, {
+      radius: 38,
+      blur: 32,
+      maxZoom: 12,
+      minOpacity: 0.30,
+      gradient: {
+        0.08: "#6a00ff",
+        0.22: "#5b3dff",
+        0.40: "#3fb8ff",
+        0.60: "#4dff88",
+        0.80: "#ffe14a",
+        1.00: "#ff3b30"
+      }
+    });
+  } else {
+    heatLayer.setLatLngs(heatData);
+  }
+
+  if (map.hasLayer(heatProxy) && !map.hasLayer(heatLayer)) {
+    heatLayer.addTo(map);
+  }
+}
+
+function updateSummary(records, metricField) {
+  const events = records.length;
+  const metricTotal = records.reduce((sum, item) => sum + getMetricValue(item, metricField), 0);
+
+  document.getElementById("summary-box").innerHTML = `
+    <b>${getText("metrics.event_count", "Events")}:</b> ${events}<br>
+    <b>${getText("filters.metric", "Metric")}:</b> ${metricTotal}
+  `;
+}
+
+function populateControls() {
+  const groupSelect = document.getElementById("activity-group-filter");
+  const typeSelect = document.getElementById("activity-type-filter");
+  const assistanceSelect = document.getElementById("assistance-type-filter");
+  const metricSelect = document.getElementById("metric-filter");
+
+  groupSelect.innerHTML = `<option value="">${getText("filters.all", "All")}</option>`;
+  activityConfig.activity_groups.forEach(group => {
+    groupSelect.innerHTML += `<option value="${group.id}">${getActivityGroupLabel(group.id)}</option>`;
+  });
+
+  typeSelect.innerHTML = `<option value="">${getText("filters.all", "All")}</option>`;
+  assistanceSelect.innerHTML = `<option value="">${getText("filters.all", "All")}</option>`;
+
+  activityConfig.assistance_types.forEach(type => {
+    assistanceSelect.innerHTML += `<option value="${type}">${type}</option>`;
+  });
+
+  metricSelect.innerHTML = "";
+  metricsConfig.metrics.forEach(metric => {
+    metricSelect.innerHTML += `<option value="${metric.id}">${getMetricLabel(metric.id)}</option>`;
+  });
+
+  metricSelect.value = metricsConfig.default_metric;
+}
+
+function updateActivityTypeOptions() {
+  const groupId = document.getElementById("activity-group-filter").value;
+  const typeSelect = document.getElementById("activity-type-filter");
+
+  typeSelect.innerHTML = `<option value="">${getText("filters.all", "All")}</option>`;
+
+  const group = activityConfig.activity_groups.find(g => g.id === groupId);
+  if (!group) return;
+
+  group.activity_types.forEach(type => {
+    typeSelect.innerHTML += `<option value="${type}">${type}</option>`;
+  });
+}
+
+function translateStaticUI() {
+  document.documentElement.lang = lang;
+
+  document.getElementById("control-title").textContent = getText("app.title", "UNICEF Activity Heatmap");
+
+  document.getElementById("label-activity-group").textContent = getText("filters.activityGroup", "Activity group");
+  document.getElementById("label-activity-type").textContent = getText("filters.activityType", "Activity type");
+  document.getElementById("label-assistance-type").textContent = getText("filters.assistanceType", "Assistance type");
+  document.getElementById("label-metric").textContent = getText("filters.metric", "Metric");
+
+  document.getElementById("apply-filters").textContent = getText("buttons.applyFilters", "Apply filters");
+  document.getElementById("reset-filters").textContent = getText("buttons.resetFilters", "Reset filters");
+}
+
+async function loadI18n() {
+  const url = lang === "uk" ? PATHS.i18nUk : PATHS.i18nEn;
+  t = await fetch(url).then(r => r.json());
+}
+
+async function init() {
+  await loadI18n();
+
+  const [settlements, groups, metrics] = await Promise.all([
+    fetch(PATHS.settlements).then(r => r.json()),
+    fetch(PATHS.activityGroups).then(r => r.json()),
+    fetch(PATHS.metrics).then(r => r.json())
+  ]);
+
+  settlementsGeo = settlements;
+  activityConfig = groups;
+  metricsConfig = metrics;
+
+  activities = buildDemoActivities();
+  filteredActivities = activities;
+
+  translateStaticUI();
+  populateControls();
+  applyFilters();
+}
+
+const control = L.control({ position: "topright" });
+
+control.onAdd = function() {
+  const div = L.DomUtil.create("div", "control-box");
+
+  div.innerHTML = `
+    <div class="lang-row">
+      <button id="lang-uk">UA</button>
+      <button id="lang-en">EN</button>
+    </div>
+
+    <div id="control-title" class="control-title">UNICEF Activity Heatmap</div>
+
+    <label id="label-activity-group"></label>
+    <select id="activity-group-filter"></select>
+
+    <label id="label-activity-type"></label>
+    <select id="activity-type-filter"></select>
+
+    <label id="label-assistance-type"></label>
+    <select id="assistance-type-filter"></select>
+
+    <label id="label-metric"></label>
+    <select id="metric-filter"></select>
+
+    <button id="apply-filters"></button>
+    <button id="reset-filters"></button>
+
+    <div id="summary-box" class="summary-box"></div>
+  `;
+
+  L.DomEvent.disableClickPropagation(div);
+  L.DomEvent.disableScrollPropagation(div);
+
+  return div;
+};
+
+control.addTo(map);
+
+setTimeout(() => {
+  document.getElementById("activity-group-filter").addEventListener("change", () => {
+    updateActivityTypeOptions();
+    applyFilters();
+  });
+
+  document.getElementById("activity-type-filter").addEventListener("change", applyFilters);
+  document.getElementById("assistance-type-filter").addEventListener("change", applyFilters);
+  document.getElementById("metric-filter").addEventListener("change", applyFilters);
+
+  document.getElementById("apply-filters").addEventListener("click", applyFilters);
+
+  document.getElementById("reset-filters").addEventListener("click", () => {
+    document.getElementById("activity-group-filter").value = "";
+    updateActivityTypeOptions();
+    document.getElementById("activity-type-filter").value = "";
+    document.getElementById("assistance-type-filter").value = "";
+    document.getElementById("metric-filter").value = metricsConfig.default_metric;
+    applyFilters();
+  });
+
+  document.getElementById("lang-uk").addEventListener("click", async () => {
+    lang = "uk";
+    localStorage.setItem("lang", lang);
+    await init();
+  });
+
+  document.getElementById("lang-en").addEventListener("click", async () => {
+    lang = "en";
+    localStorage.setItem("lang", lang);
+    await init();
+  });
+}, 0);
+
+init();
+</script>
+</body>
+</html>
