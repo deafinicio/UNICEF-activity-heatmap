@@ -5,7 +5,7 @@ const PATHS = {
 
 // Paste Apps Script Web App URL here when backend is ready.
 // Example: const APPS_SCRIPT_URL = "https://script.google.com/macros/s/XXXX/exec";
-const APPS_SCRIPT_URL = "";
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw6ixPdp0tgPCH7dk4UYlZilgyZqHG4kwBw-e2RE3-WY8QaagZ_1uGUUVlcd5pyeSIfSg/exec";
 
 let lang = localStorage.getItem("unicef_form_lang") || "uk";
 let schema = null;
