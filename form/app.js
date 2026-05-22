@@ -378,20 +378,36 @@ async function init() {
     setStatus("");
   });
 
-  document.getElementById("activity-form").addEventListener("submit", async event => {
-    event.preventDefault();
+ let isSubmitting = false;
 
-    const payload = collectPayload();
+document.getElementById("activity-form").addEventListener("submit", async event => {
+  event.preventDefault();
 
-    try {
-      const result = await submitPayload(payload);
-      setStatus(result.localOnly ? tr("success") : tr("sent"), "success");
-      updatePreview();
-    } catch (error) {
-      console.error(error);
-      setStatus(tr("error"), "error");
-    }
-  });
+  if (isSubmitting) return;
+
+  isSubmitting = true;
+
+  const submitButton = document.getElementById("submit-btn");
+  submitButton.disabled = true;
+  submitButton.textContent = lang === "uk" ? "Надсилається..." : "Submitting...";
+
+  setStatus(lang === "uk" ? "Надсилання даних..." : "Submitting data...");
+
+  const payload = collectPayload();
+
+  try {
+    const result = await submitPayload(payload);
+    setStatus(result.localOnly ? tr("success") : tr("sent"), "success");
+    updatePreview();
+  } catch (error) {
+    console.error(error);
+    setStatus(tr("error"), "error");
+  } finally {
+    isSubmitting = false;
+    submitButton.disabled = false;
+    submitButton.textContent = tr("submit");
+  }
+});
 
   document.getElementById("lang-uk").addEventListener("click", () => {
     lang = "uk";
