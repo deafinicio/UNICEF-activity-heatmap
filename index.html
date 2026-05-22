@@ -25,8 +25,7 @@
   .control-box {
     width: 250px;
     max-height: calc(100vh - 22px);
-    overflow-y: auto;
-    overflow-x: hidden;
+    overflow: visible;
     background: rgba(255, 255, 255, 0.96);
     backdrop-filter: blur(10px);
     border: 1px solid rgba(226, 232, 240, 0.95);
@@ -358,12 +357,110 @@ const overlays = {
 };
 
 
-// Всі метрики тепер повністю в config/metrics.json — EXTRA_METRICS більше не потрібен.
+const EXTRA_METRICS = [
+  {
+    id: "female_total",
+    field: "female_total",
+    label: { uk: "Жінки / дівчата", en: "Female" }
+  },
+  {
+    id: "male_total",
+    field: "male_total",
+    label: { uk: "Чоловіки / хлопці", en: "Male" }
+  },
+  {
+    id: "children_total",
+    field: "children_total",
+    label: { uk: "Діти 0–17", en: "Children 0–17" }
+  },
+  {
+    id: "adults_total",
+    field: "adults_total",
+    label: { uk: "Дорослі 18+", en: "Adults 18+" }
+  },
+  {
+    id: "female_0_4",
+    field: "female_0_4",
+    label: { uk: "Дівчата 0–4", en: "Female 0–4" }
+  },
+  {
+    id: "male_0_4",
+    field: "male_0_4",
+    label: { uk: "Хлопці 0–4", en: "Male 0–4" }
+  },
+  {
+    id: "female_5_9",
+    field: "female_5_9",
+    label: { uk: "Дівчата 5–9", en: "Female 5–9" }
+  },
+  {
+    id: "male_5_9",
+    field: "male_5_9",
+    label: { uk: "Хлопці 5–9", en: "Male 5–9" }
+  },
+  {
+    id: "female_10_14",
+    field: "female_10_14",
+    label: { uk: "Дівчата 10–14", en: "Female 10–14" }
+  },
+  {
+    id: "male_10_14",
+    field: "male_10_14",
+    label: { uk: "Хлопці 10–14", en: "Male 10–14" }
+  },
+  {
+    id: "female_15_17",
+    field: "female_15_17",
+    label: { uk: "Дівчата 15–17", en: "Female 15–17" }
+  },
+  {
+    id: "male_15_17",
+    field: "male_15_17",
+    label: { uk: "Хлопці 15–17", en: "Male 15–17" }
+  },
+  {
+    id: "female_18_plus",
+    field: "female_18_plus",
+    label: { uk: "Жінки 18+", en: "Female 18+" }
+  },
+  {
+    id: "male_18_plus",
+    field: "male_18_plus",
+    label: { uk: "Чоловіки 18+", en: "Male 18+" }
+  },
+  {
+    id: "age_0_4_total",
+    field: "age_0_4_total",
+    label: { uk: "Усі 0–4", en: "All 0–4" }
+  },
+  {
+    id: "age_5_9_total",
+    field: "age_5_9_total",
+    label: { uk: "Усі 5–9", en: "All 5–9" }
+  },
+  {
+    id: "age_10_14_total",
+    field: "age_10_14_total",
+    label: { uk: "Усі 10–14", en: "All 10–14" }
+  },
+  {
+    id: "age_15_17_total",
+    field: "age_15_17_total",
+    label: { uk: "Усі 15–17", en: "All 15–17" }
+  },
+  {
+    id: "age_18_plus_total",
+    field: "age_18_plus_total",
+    label: { uk: "Усі 18+", en: "All 18+" }
+  }
+];
 
 function getAllMetrics() {
-  return (metricsConfig && Array.isArray(metricsConfig.metrics))
+  const baseMetrics = metricsConfig && Array.isArray(metricsConfig.metrics)
     ? metricsConfig.metrics
     : [];
+
+  return baseMetrics.concat(EXTRA_METRICS);
 }
 
 function getMetricConfigById(metricId) {
@@ -376,19 +473,6 @@ L.control.layers(baseLayers, overlays, { collapsed: false, position: "bottomleft
 map.addLayer(clusterLayer);
 map.addLayer(heatProxy);
 
-// Синхронізуємо реальний heatLayer з перемикачем контролу шарів.
-// Без цього heatLayer залишається на карті навіть коли "Heatmap" вимкнений.
-map.on("overlayadd", e => {
-  if (e.layer === heatProxy && heatLayer && !map.hasLayer(heatLayer)) {
-    heatLayer.addTo(map);
-  }
-});
-map.on("overlayremove", e => {
-  if (e.layer === heatProxy && heatLayer && map.hasLayer(heatLayer)) {
-    map.removeLayer(heatLayer);
-  }
-});
-
 function safeNumber(value) {
   const n = Number(value);
   return Number.isFinite(n) ? n : 0;
@@ -399,36 +483,14 @@ function normalizeText(value) {
     .trim()
     .toLowerCase()
     .replace(/[`ʼ']/g, "’")
-    .replace(/\s+/g, " ");
-}
-
-// XSS-захист для popup-контенту
-function escapeHtml(value) {
-  return String(value ?? "").replace(/[&<>"']/g, c =>
-    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])
-  );
-}
-
-// Settlement lookup index — будується один раз після завантаження GeoJSON.
-// Дає O(1) замість O(n) пошуку у findSettlementPoint.
-let settlementIndex = null;
-
-function buildSettlementIndex(geo) {
-  settlementIndex = new Map();
-  for (const f of (geo.features || [])) {
-    const p = f.properties || {};
-    const key = [p.raion, p.hromada, p.settlement].map(normalizeText).join("|");
-    if (!settlementIndex.has(key)) {
-      settlementIndex.set(key, f);
-    }
-  }
+    .replace(/\\s+/g, " ");
 }
 
 function normalizeDateValue(value) {
   if (!value) return "";
 
   if (typeof value === "string") {
-    if (/^\d{4}-\d{2}-\d{2}/.test(value)) {
+    if (/^\\d{4}-\\d{2}-\\d{2}/.test(value)) {
       return value.slice(0, 10);
     }
 
@@ -461,15 +523,12 @@ function getActivityGroupLabel(id) {
 }
 
 function getMetricLabel(id) {
-  const metric = getMetricConfigById(id);
-  if (metric) {
-    // metrics.json тепер зберігає label як об'єкт { uk, en } або рядок
-    const label = metric.label;
-    if (label && typeof label === "object") {
-      return label[lang] || label.en || id;
-    }
-    return label || id;
+  const extraMetric = EXTRA_METRICS.find(metric => metric.id === id);
+
+  if (extraMetric) {
+    return extraMetric.label[lang] || extraMetric.label.en || id;
   }
+
   return getText("metrics." + id, id);
 }
 
@@ -534,9 +593,18 @@ function normalizeActivityRow(row) {
 }
 
 function findSettlementPoint(record) {
-  if (!settlementIndex) return null;
-  const key = [record.raion, record.hromada, record.settlement].map(normalizeText).join("|");
-  return settlementIndex.get(key) || null;
+  const features = settlementsGeo.features || [];
+
+  const raion = normalizeText(record.raion);
+  const hromada = normalizeText(record.hromada);
+  const settlement = normalizeText(record.settlement);
+
+  return features.find(f => {
+    const p = f.properties || {};
+    return normalizeText(p.raion) === raion &&
+      normalizeText(p.hromada) === hromada &&
+      normalizeText(p.settlement) === settlement;
+  });
 }
 
 function activityToFeature(record) {
@@ -620,16 +688,16 @@ function renderMap(records, metricField) {
       const metricValue = getMetricValue(p, metricField);
 
       const html = `
-        <b>${escapeHtml(p.settlement)}</b><br>
-        ${escapeHtml(p.hromada)}, ${escapeHtml(p.raion)}<br>
-        ${getText("popup.date", "Date")}: ${escapeHtml(p.activity_date) || "—"}<br>
-        ${getText("popup.activityGroup", "Activity group")}: ${escapeHtml(getActivityGroupLabel(p.activity_group))}<br>
-        ${getText("popup.activityType", "Activity type")}: ${escapeHtml(p.activity_type) || "—"}<br>
-        ${getText("popup.assistanceType", "Assistance type")}: ${escapeHtml(p.assistance_type) || "—"}<br>
+        <b>${p.settlement || ""}</b><br>
+        ${p.hromada || ""}, ${p.raion || ""}<br>
+        ${getText("popup.date", "Date")}: ${p.activity_date || "—"}<br>
+        ${getText("popup.activityGroup", "Activity group")}: ${getActivityGroupLabel(p.activity_group)}<br>
+        ${getText("popup.activityType", "Activity type")}: ${p.activity_type || "—"}<br>
+        ${getText("popup.assistanceType", "Assistance type")}: ${p.assistance_type || "—"}<br>
         ${getText("popup.people", "People")}: ${safeNumber(p.people_total)}<br>
         ${getText("popup.kits", "Kits")}: ${safeNumber(p.kits_total)}<br>
         <b>${getText("filters.metric", "Metric")}:</b> ${metricValue}
-        ${p.comment ? "<br>" + getText("popup.comment", "Comment") + ": " + escapeHtml(p.comment) : ""}
+        ${p.comment ? "<br>" + getText("popup.comment", "Comment") + ": " + p.comment : ""}
       `;
 
       layer.bindPopup(html);
@@ -668,12 +736,12 @@ function renderMap(records, metricField) {
         1.00: "#ff3b30"
       }
     });
-    // Додаємо на карту лише якщо heatProxy зараз увімкнений
-    if (map.hasLayer(heatProxy)) {
-      heatLayer.addTo(map);
-    }
   } else {
     heatLayer.setLatLngs(heatData);
+  }
+
+  if (map.hasLayer(heatProxy) && !map.hasLayer(heatLayer)) {
+    heatLayer.addTo(map);
   }
 }
 
@@ -895,7 +963,6 @@ async function init() {
   ]);
 
   settlementsGeo = settlements;
-  buildSettlementIndex(settlements);  // будуємо індекс O(1) пошуку
   activityConfig = groups;
   metricsConfig = metrics;
 
@@ -1013,7 +1080,7 @@ async function exportMapToPng() {
   }
 }
 
-function bindEvents() {
+setTimeout(() => {
   document.getElementById("activity-group-filter").addEventListener("change", () => {
     updateActivityTypeOptions();
     applyFilters();
@@ -1051,21 +1118,13 @@ function bindEvents() {
   });
 
   updateLanguageButtons();
-}
+}, 0);
 
-// Показуємо індикатор завантаження поки init() ще не завершився
-document.getElementById("summary-box").innerHTML =
-  `<div style="padding:8px 0;color:#64748b;font-size:12px">
-    ${lang === "uk" ? "⏳ Завантаження даних…" : "⏳ Loading data…"}
-  </div>`;
-
-init()
-  .then(bindEvents)
-  .catch(error => {
-    console.error(error);
-    document.getElementById("summary-box").innerHTML =
-      `<b>Initialization error</b><br>${error.message}`;
-  });
+init().catch(error => {
+  console.error(error);
+  document.getElementById("summary-box").innerHTML =
+    `<b>Initialization error</b><br>${error.message}`;
+});
 </script>
 </body>
 </html>
