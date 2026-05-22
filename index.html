@@ -678,17 +678,25 @@ setTimeout(() => {
     applyFilters();
   });
 
-  document.getElementById("lang-uk").addEventListener("click", async () => {
-    lang = "uk";
-    localStorage.setItem("lang", lang);
-    await init();
-  });
+  async function switchLanguage(newLang) {
+  lang = newLang;
+  localStorage.setItem("lang", lang);
 
-  document.getElementById("lang-en").addEventListener("click", async () => {
-    lang = "en";
-    localStorage.setItem("lang", lang);
-    await init();
-  });
+  await loadI18n();
+
+  translateStaticUI();
+  populateControls();
+  updateActivityTypeOptions();
+  applyFilters();
+}
+
+document.getElementById("lang-uk").addEventListener("click", async () => {
+  await switchLanguage("uk");
+});
+
+document.getElementById("lang-en").addEventListener("click", async () => {
+  await switchLanguage("en");
+});
 }, 0);
 
 init().catch(error => {
