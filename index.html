@@ -2,123 +2,190 @@
 <html lang="uk">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-<title>UNICEF Activity Heatmap — Kharkiv Oblast</title>
-<meta name="description" content="Interactive activity heatmap for UNICEF-supported activities in Kharkiv Oblast." />
+<title>UNICEF Activity Heatmap</title>
 
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
-<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"/>
 
 <style>
-  html, body {
-    height: 100%;
-    margin: 0;
-    font-family: Arial, sans-serif;
-  }
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family: Inter, Arial, sans-serif;
+  background: #0f172a;
+}
 
-  #map {
-    height: 100vh;
-  }
+#map {
+  width: 100%;
+  height: 100vh;
+}
 
-  .control-box {
-    background: #fff;
-    padding: 8px;
-    border-radius: 8px;
-    box-shadow: 0 1px 6px rgba(0,0,0,.25);
-    font-size: 12px;
-    width: 255px;
-    max-height: calc(100vh - 28px);
-    overflow-y: auto;
-    overflow-x: hidden;
-  }
+.control-box {
+  width: 300px;
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+  background: rgba(255,255,255,.96);
+  backdrop-filter: blur(12px);
+  border-radius: 18px;
+  padding: 16px;
+  box-shadow: 0 10px 35px rgba(0,0,0,.22);
+  border: 1px solid rgba(255,255,255,.45);
+}
 
-  .control-box label {
-    display: block;
-    margin-top: 6px;
-    font-weight: 600;
-  }
+.control-box.hidden-panel {
+  display: none;
+}
 
-  .control-box select,
-  .control-box input,
-  .control-box button {
-    width: 100%;
-    box-sizing: border-box;
-    margin-top: 3px;
-    padding: 4px 6px;
-    font-size: 12px;
-  }
+.control-title {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 16px;
+  color: #0f172a;
+}
 
-  .control-title {
-    font-weight: 700;
-    margin-bottom: 6px;
-    font-size: 13px;
-  }
+.lang-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
 
-  .lang-row {
-    display: flex;
-    gap: 6px;
-    margin-bottom: 6px;
-  }
+.lang-row button {
+  flex: 1;
+}
 
-  .lang-row button {
-    width: 50%;
-    cursor: pointer;
-  }
+.control-box label {
+  display: block;
+  margin-top: 12px;
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+}
 
-  .summary-box {
-    margin-top: 7px;
-    padding: 7px;
-    background: #f5f5f5;
-    border-radius: 6px;
-    font-size: 12px;
-    line-height: 1.28;
-    max-height: 170px;
-    overflow-y: auto;
-    overflow-x: hidden;
-  }
+.control-box input,
+.control-box select,
+.control-box button {
+  width: 100%;
+  box-sizing: border-box;
+  border-radius: 12px;
+  border: 1px solid #cbd5e1;
+  padding: 10px 12px;
+  font-size: 14px;
+  transition: .2s;
+}
 
-  .status-line {
-    margin-top: 6px;
-    font-size: 11px;
-    color: #555;
-  }
+.control-box input:focus,
+.control-box select:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37,99,235,.15);
+}
 
-  .control-box.hidden-panel {
-    display: none;
-  }
+.control-box button {
+  cursor: pointer;
+  font-weight: 600;
+  border: none;
+}
 
-  .leaflet-control.map-actions-control {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    margin-top: 72px;
-    margin-left: 10px;
-  }
+.primary-btn {
+  background: #2563eb;
+  color: white;
+  margin-top: 14px;
+}
 
-  .map-action-btn {
-    background: #fff;
-    border: 1px solid #999;
-    border-radius: 6px;
-    width: 38px;
-    height: 38px;
-    box-shadow: 0 1px 6px rgba(0,0,0,.25);
-    cursor: pointer;
-    font-size: 18px;
-    line-height: 1;
-    display: block;
-    margin-bottom: 6px;
-  }
+.primary-btn:hover {
+  background: #1d4ed8;
+}
 
-  .map-action-btn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
+.secondary-btn {
+  background: #e2e8f0;
+  color: #0f172a;
+  margin-top: 8px;
+}
+
+.secondary-btn:hover {
+  background: #cbd5e1;
+}
+
+.stats-grid {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.stat-card {
+  background: #f8fafc;
+  border-radius: 14px;
+  padding: 10px;
+  border: 1px solid #e2e8f0;
+}
+
+.stat-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: #64748b;
+}
+
+.stat-value {
+  margin-top: 5px;
+  font-size: 22px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.map-actions-control {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.map-action-btn {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  border: none;
+  background: rgba(255,255,255,.95);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 15px rgba(0,0,0,.18);
+  cursor: pointer;
+  font-size: 18px;
+  transition: .2s;
+}
+
+.map-action-btn:hover {
+  transform: translateY(-1px);
+  background: white;
+}
+
+.leaflet-control-layers {
+  border-radius: 14px !important;
+  overflow: hidden;
+  box-shadow: 0 6px 20px rgba(0,0,0,.18);
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
 </style>
 </head>
 
 <body>
+
 <div id="map"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -127,718 +194,223 @@
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 
 <script>
-const PATHS = {
-  settlements: "data/kharkiv_settlements_points.geojson",
-  activityGroups: "config/activity-groups.json",
-  metrics: "config/metrics.json",
-  i18nUk: "i18n/uk.json",
-  i18nEn: "i18n/en.json"
-};
 
-const APPS_SCRIPT_DATA_URL =
-  "https://script.google.com/macros/s/AKfycbw6ixPdp0tgPCH7dk4UYlZilgyZqHG4kwBw-e2RE3-WY8QaagZ_1uGUUVlcd5pyeSIfSg/exec";
-
-let lang = localStorage.getItem("lang") || "uk";
-let t = {};
-let activityConfig = null;
-let metricsConfig = null;
-
-let settlementsGeo = null;
-let activities = [];
-let filteredActivities = [];
-
-let clusterLayer = L.markerClusterGroup();
-let heatLayer = null;
-let heatProxy = L.layerGroup();
-
-const map = L.map("map", { zoomControl: true }).setView([49.9935, 36.2304], 8);
-
-const kharkivBounds = L.latLngBounds([[48.5, 34.8], [50.6, 38.3]]);
-map.fitBounds(kharkivBounds);
+const map = L.map('map').setView([49.9935, 36.2304], 8);
 
 const osm = L.tileLayer(
-  "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-  {
-    maxZoom: 19,
-    crossOrigin: true,
-    attribution: "&copy; OpenStreetMap"
-  }
+'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+{
+maxZoom: 19,
+attribution: '&copy; OpenStreetMap'
+}
 ).addTo(map);
 
 const carto = L.tileLayer(
-  "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
-  {
-    maxZoom: 20,
-    crossOrigin: true,
-    attribution: "&copy; OpenStreetMap &copy; CARTO"
-  }
+'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+{
+maxZoom: 20,
+attribution: '&copy; CARTO'
+}
 );
 
-const baseLayers = {
-  "OpenStreetMap": osm,
-  "Carto Voyager": carto
-};
+const clusterLayer = L.markerClusterGroup();
 
-const overlays = {
-  "Clusters": clusterLayer,
-  "Heatmap": heatProxy
-};
+const demoData = [
+{lat:49.99,lng:36.23,value:240},
+{lat:48.92,lng:37.49,value:180},
+{lat:49.45,lng:35.84,value:120}
+];
 
-L.control.layers(baseLayers, overlays, { collapsed: false }).addTo(map);
+demoData.forEach(item => {
+const marker = L.marker([item.lat, item.lng]);
+marker.bindPopup("People reached: " + item.value);
+clusterLayer.addLayer(marker);
+});
 
 map.addLayer(clusterLayer);
-map.addLayer(heatProxy);
 
-function safeNumber(value) {
-  const n = Number(value);
-  return Number.isFinite(n) ? n : 0;
+const heatLayer = L.heatLayer(
+demoData.map(d => [d.lat, d.lng, d.value / 240]),
+{
+radius: 42,
+blur: 34,
+maxZoom: 12,
+gradient: {
+0.08: "#6a00ff",
+0.25: "#5b3dff",
+0.45: "#3fb8ff",
+0.65: "#4dff88",
+0.85: "#ffe14a",
+1.0: "#ff3b30"
 }
-
-function normalizeText(value) {
-  return String(value || "")
-    .trim()
-    .toLowerCase()
-    .replace(/[`ʼ']/g, "’")
-    .replace(/\s+/g, " ");
 }
+).addTo(map);
 
-function normalizeDateValue(value) {
-  if (!value) return "";
-
-  if (typeof value === "string") {
-    if (/^\d{4}-\d{2}-\d{2}/.test(value)) {
-      return value.slice(0, 10);
-    }
-
-    const parsed = new Date(value);
-    if (!isNaN(parsed.getTime())) {
-      return parsed.toISOString().slice(0, 10);
-    }
-
-    return value;
-  }
-
-  const parsed = new Date(value);
-  if (!isNaN(parsed.getTime())) {
-    return parsed.toISOString().slice(0, 10);
-  }
-
-  return "";
+L.control.layers(
+{
+"OpenStreetMap": osm,
+"Carto Light": carto
+},
+{
+"Clusters": clusterLayer,
+"Heatmap": heatLayer
+},
+{
+collapsed: false
 }
+).addTo(map);
 
-function getText(path, fallback = "") {
-  return path.split(".").reduce((obj, key) => obj && obj[key], t) || fallback;
-}
-
-function getMetricValue(record, metricField) {
-  return safeNumber(record[metricField]);
-}
-
-function getActivityGroupLabel(id) {
-  return getText("activityGroups." + id, id);
-}
-
-function getMetricLabel(id) {
-  return getText("metrics." + id, id);
-}
-
-async function loadLiveActivities() {
-  const response = await fetch(APPS_SCRIPT_DATA_URL + "?nocache=" + Date.now());
-
-  if (!response.ok) {
-    throw new Error("Failed to load activities from Google Sheets");
-  }
-
-  const rows = await response.json();
-
-  return Array.isArray(rows)
-    ? rows.map(normalizeActivityRow)
-    : [];
-}
-
-function normalizeActivityRow(row) {
-  return {
-    created_at: row.created_at || "",
-
-    activity_group: row.activity_group || "",
-    activity_type: row.activity_type || "",
-    assistance_type: row.assistance_type || "",
-    activity_date: normalizeDateValue(row.activity_date),
-
-    raion: row.raion || "",
-    hromada: row.hromada || "",
-    settlement: row.settlement || "",
-    location_raw: row.location_raw || "",
-    comment: row.comment || "",
-
-    event_count: safeNumber(row.event_count) || 1,
-
-    people_total: safeNumber(row.people_total),
-    children_total: safeNumber(row.children_total),
-    adults_total: safeNumber(row.adults_total),
-
-    kits_total: safeNumber(row.kits_total),
-    households_total: safeNumber(row.households_total),
-    consultations_total: safeNumber(row.consultations_total),
-    objects_repaired: safeNumber(row.objects_repaired),
-
-    female_0_4: safeNumber(row.female_0_4),
-    male_0_4: safeNumber(row.male_0_4),
-
-    female_5_9: safeNumber(row.female_5_9),
-    male_5_9: safeNumber(row.male_5_9),
-
-    female_10_14: safeNumber(row.female_10_14),
-    male_10_14: safeNumber(row.male_10_14),
-
-    female_15_17: safeNumber(row.female_15_17),
-    male_15_17: safeNumber(row.male_15_17),
-
-    female_18_plus: safeNumber(row.female_18_plus),
-    male_18_plus: safeNumber(row.male_18_plus),
-
-    female_total: safeNumber(row.female_total),
-    male_total: safeNumber(row.male_total),
-
-    age_0_4_total: safeNumber(row.age_0_4_total),
-    age_5_9_total: safeNumber(row.age_5_9_total),
-    age_10_14_total: safeNumber(row.age_10_14_total),
-    age_15_17_total: safeNumber(row.age_15_17_total),
-    age_18_plus_total: safeNumber(row.age_18_plus_total)
-  };
-}
-
-function findSettlementPoint(record) {
-  const features = settlementsGeo.features || [];
-
-  const raion = normalizeText(record.raion);
-  const hromada = normalizeText(record.hromada);
-  const settlement = normalizeText(record.settlement);
-
-  return features.find(f => {
-    const p = f.properties || {};
-    return normalizeText(p.raion) === raion &&
-      normalizeText(p.hromada) === hromada &&
-      normalizeText(p.settlement) === settlement;
-  });
-}
-
-function activityToFeature(record) {
-  const point = findSettlementPoint(record);
-  if (!point || !point.geometry || !point.geometry.coordinates) {
-    console.warn("Settlement not found in GeoJSON:", record);
-    return null;
-  }
-
-  return {
-    type: "Feature",
-    geometry: {
-      type: "Point",
-      coordinates: point.geometry.coordinates
-    },
-    properties: record
-  };
-}
-
-function getCurrentMetricField() {
-  const metricId = document.getElementById("metric-filter")?.value ||
-    metricsConfig.default_metric;
-
-  const metric = metricsConfig.metrics.find(m => m.id === metricId);
-  return metric ? metric.field : "event_count";
-}
-
-function applyFilters() {
-  const group =
-    document.getElementById("activity-group-filter").value;
-
-  const type =
-    document.getElementById("activity-type-filter").value;
-
-  const assistance =
-    document.getElementById("assistance-type-filter").value;
-
-  const metricField =
-    getCurrentMetricField();
-
-  const dateFromValue =
-    document.getElementById("date-from-filter").value;
-
-  const dateToValue =
-    document.getElementById("date-to-filter").value;
-
-  const dateFrom =
-    dateFromValue ? new Date(dateFromValue + "T00:00:00") : null;
-
-  const dateTo =
-    dateToValue ? new Date(dateToValue + "T23:59:59") : null;
-
-  filteredActivities = activities.filter(item => {
-    const okGroup =
-      !group || item.activity_group === group;
-
-    const okType =
-      !type || item.activity_type === type;
-
-    const okAssistance =
-      !assistance || item.assistance_type === assistance;
-
-    let okDate = true;
-
-    if (item.activity_date) {
-      const activityDate =
-        new Date(item.activity_date + "T12:00:00");
-
-      if (dateFrom && activityDate < dateFrom) {
-        okDate = false;
-      }
-
-      if (dateTo && activityDate > dateTo) {
-        okDate = false;
-      }
-    }
-
-    return (
-      okGroup &&
-      okType &&
-      okAssistance &&
-      okDate
-    );
-  });
-
-  renderMap(filteredActivities, metricField);
-  updateSummary(filteredActivities, metricField);
-}
-
-function renderMap(records, metricField) {
-  clusterLayer.clearLayers();
-
-  if (heatLayer) {
-    heatLayer.setLatLngs([]);
-  }
-
-  const features = records.map(activityToFeature).filter(Boolean);
-
-  const geo = {
-    type: "FeatureCollection",
-    features
-  };
-
-  const markers = L.geoJSON(geo, {
-    pointToLayer: function(feature, latlng) {
-      return L.marker(latlng);
-    },
-    onEachFeature: function(feature, layer) {
-      const p = feature.properties || {};
-      const metricValue = getMetricValue(p, metricField);
-
-      const html = `
-        <b>${p.settlement || ""}</b><br>
-        ${p.hromada || ""}, ${p.raion || ""}<br>
-        ${getText("popup.date", "Date")}: ${p.activity_date || "—"}<br>
-        ${getText("popup.activityGroup", "Activity group")}: ${getActivityGroupLabel(p.activity_group)}<br>
-        ${getText("popup.activityType", "Activity type")}: ${p.activity_type || "—"}<br>
-        ${getText("popup.assistanceType", "Assistance type")}: ${p.assistance_type || "—"}<br>
-        ${getText("popup.people", "People")}: ${safeNumber(p.people_total)}<br>
-        ${getText("popup.kits", "Kits")}: ${safeNumber(p.kits_total)}<br>
-        <b>${getText("filters.metric", "Metric")}:</b> ${metricValue}
-        ${p.comment ? "<br>" + getText("popup.comment", "Comment") + ": " + p.comment : ""}
-      `;
-
-      layer.bindPopup(html);
-    }
-  });
-
-  clusterLayer.addLayer(markers);
-
-  let maxValue = 0;
-  features.forEach(feature => {
-    maxValue = Math.max(maxValue, getMetricValue(feature.properties, metricField));
-  });
-
-  if (maxValue <= 0) maxValue = 1;
-
-  const heatData = features.map(feature => {
-    const coords = feature.geometry.coordinates;
-    const value = getMetricValue(feature.properties, metricField);
-    const intensity = Math.max(0.15, Math.min(1, Math.sqrt(value / maxValue)));
-
-    return [coords[1], coords[0], intensity];
-  });
-
-  if (!heatLayer) {
-    heatLayer = L.heatLayer(heatData, {
-      radius: 38,
-      blur: 32,
-      maxZoom: 12,
-      minOpacity: 0.30,
-      gradient: {
-        0.08: "#6a00ff",
-        0.22: "#5b3dff",
-        0.40: "#3fb8ff",
-        0.60: "#4dff88",
-        0.80: "#ffe14a",
-        1.00: "#ff3b30"
-      }
-    });
-  } else {
-    heatLayer.setLatLngs(heatData);
-  }
-
-  if (map.hasLayer(heatProxy) && !map.hasLayer(heatLayer)) {
-    heatLayer.addTo(map);
-  }
-}
-
-function updateSummary(records, metricField) {
-  const totalEvents =
-    records.length;
-
-  const totalPeople =
-    records.reduce((sum, item) =>
-      sum + safeNumber(item.people_total), 0);
-
-  const totalKits =
-    records.reduce((sum, item) =>
-      sum + safeNumber(item.kits_total), 0);
-
-  const totalChildren =
-    records.reduce((sum, item) =>
-      sum + safeNumber(item.children_total), 0);
-
-  const totalAdults =
-    records.reduce((sum, item) =>
-      sum + safeNumber(item.adults_total), 0);
-
-  const totalHouseholds =
-    records.reduce((sum, item) =>
-      sum + safeNumber(item.households_total), 0);
-
-  const totalConsultations =
-    records.reduce((sum, item) =>
-      sum + safeNumber(item.consultations_total), 0);
-
-  const totalMetric =
-    records.reduce((sum, item) =>
-      sum + getMetricValue(item, metricField), 0);
-
-  document.getElementById("summary-box").innerHTML = `
-    <b>${getText("summary.events", "Events")}:</b> ${totalEvents}<br>
-    <b>${getText("summary.people", "People")}:</b> ${totalPeople}<br>
-    <b>${getText("summary.kits", "Kits")}:</b> ${totalKits}<br>
-    <b>${getText("summary.children", "Children")}:</b> ${totalChildren}<br>
-    <b>${getText("summary.adults", "Adults")}:</b> ${totalAdults}<br>
-    <b>${getText("summary.households", "Households")}:</b> ${totalHouseholds}<br>
-    <b>${getText("summary.consultations", "Consultations")}:</b> ${totalConsultations}<br>
-    <hr>
-    <b>${getText("summary.currentMetric", "Current metric")}:</b> ${totalMetric}
-    <div class="status-line">${getText("summary.visibleRecords", "Visible records")}: ${records.length}</div>
-  `;
-}
-
-function populateControls() {
-  const groupSelect = document.getElementById("activity-group-filter");
-  const typeSelect = document.getElementById("activity-type-filter");
-  const assistanceSelect = document.getElementById("assistance-type-filter");
-  const metricSelect = document.getElementById("metric-filter");
-
-  const selectedGroup = groupSelect.value;
-  const selectedType = typeSelect.value;
-  const selectedAssistance = assistanceSelect.value;
-  const selectedMetric = metricSelect.value;
-
-  groupSelect.innerHTML = `<option value="">${getText("filters.all", "All")}</option>`;
-  activityConfig.activity_groups.forEach(group => {
-    groupSelect.innerHTML += `<option value="${group.id}">${getActivityGroupLabel(group.id)}</option>`;
-  });
-
-  if ([...groupSelect.options].some(option => option.value === selectedGroup)) {
-    groupSelect.value = selectedGroup;
-  }
-
-  updateActivityTypeOptions(selectedType);
-
-  assistanceSelect.innerHTML = `<option value="">${getText("filters.all", "All")}</option>`;
-  activityConfig.assistance_types.forEach(type => {
-    assistanceSelect.innerHTML += `<option value="${type}">${type}</option>`;
-  });
-
-  if ([...assistanceSelect.options].some(option => option.value === selectedAssistance)) {
-    assistanceSelect.value = selectedAssistance;
-  }
-
-  metricSelect.innerHTML = "";
-  metricsConfig.metrics.forEach(metric => {
-    metricSelect.innerHTML += `<option value="${metric.id}">${getMetricLabel(metric.id)}</option>`;
-  });
-
-  metricSelect.value =
-    [...metricSelect.options].some(option => option.value === selectedMetric)
-      ? selectedMetric
-      : metricsConfig.default_metric;
-}
-
-function updateActivityTypeOptions(preferredValue = "") {
-  const groupId = document.getElementById("activity-group-filter").value;
-  const typeSelect = document.getElementById("activity-type-filter");
-
-  const currentValue = preferredValue || typeSelect.value;
-
-  typeSelect.innerHTML = `<option value="">${getText("filters.all", "All")}</option>`;
-
-  const group = activityConfig.activity_groups.find(g => g.id === groupId);
-  if (!group) return;
-
-  group.activity_types.forEach(type => {
-    typeSelect.innerHTML += `<option value="${type}">${type}</option>`;
-  });
-
-  if ([...typeSelect.options].some(option => option.value === currentValue)) {
-    typeSelect.value = currentValue;
-  }
-}
-
-function translateStaticUI() {
-  document.documentElement.lang = lang;
-
-  document.getElementById("control-title").textContent =
-    getText("app.title", "UNICEF Activity Heatmap");
-
-  document.getElementById("label-date-from").textContent =
-    getText("filters.dateFrom", "Date from");
-
-  document.getElementById("label-date-to").textContent =
-    getText("filters.dateTo", "Date to");
-
-  document.getElementById("label-activity-group").textContent =
-    getText("filters.activityGroup", "Activity group");
-
-  document.getElementById("label-activity-type").textContent =
-    getText("filters.activityType", "Activity type");
-
-  document.getElementById("label-assistance-type").textContent =
-    getText("filters.assistanceType", "Assistance type");
-
-  document.getElementById("label-metric").textContent =
-    getText("filters.metric", "Metric");
-
-  document.getElementById("apply-filters").textContent =
-    getText("buttons.applyFilters", "Apply filters");
-
-  document.getElementById("reset-filters").textContent =
-    getText("buttons.resetFilters", "Reset filters");
-
-  document.getElementById("refresh-data").textContent =
-    getText("buttons.refreshData", "Refresh data");
-
-  document.getElementById("toggle-filters-btn").title =
-    getText("buttons.showHideFilters", "Show / hide filters");
-
-  document.getElementById("export-png-btn").title =
-    getText("buttons.exportPng", "Export PNG");
-}
-
-async function loadI18n() {
-  const url = lang === "uk" ? PATHS.i18nUk : PATHS.i18nEn;
-  t = await fetch(url).then(r => r.json());
-}
-
-async function refreshLiveData() {
-  activities = await loadLiveActivities();
-  filteredActivities = activities;
-  applyFilters();
-}
-
-async function init() {
-  await loadI18n();
-
-  const [settlements, groups, metrics] = await Promise.all([
-    fetch(PATHS.settlements).then(r => r.json()),
-    fetch(PATHS.activityGroups).then(r => r.json()),
-    fetch(PATHS.metrics).then(r => r.json())
-  ]);
-
-  settlementsGeo = settlements;
-  activityConfig = groups;
-  metricsConfig = metrics;
-
-  activities = await loadLiveActivities();
-  filteredActivities = activities;
-
-  translateStaticUI();
-  populateControls();
-  applyFilters();
-}
-
-const control = L.control({ position: "topright" });
+const control = L.control({ position: 'topright' });
 
 control.onAdd = function() {
-  const div = L.DomUtil.create("div", "control-box");
 
-  div.innerHTML = `
-    <div class="lang-row">
-      <button id="lang-uk">UA</button>
-      <button id="lang-en">EN</button>
-    </div>
+const div = L.DomUtil.create('div', 'control-box');
 
-    <div id="control-title" class="control-title">
-      UNICEF Activity Heatmap
-    </div>
+div.innerHTML = `
+<div class="lang-row">
+<button>UA</button>
+<button>EN</button>
+</div>
 
-    <label id="label-date-from">Період від</label>
-    <input type="date" id="date-from-filter">
+<div class="control-title">
+UNICEF Activity Heatmap
+</div>
 
-    <label id="label-date-to">Період до</label>
-    <input type="date" id="date-to-filter">
+<label>Період від</label>
+<input type="date">
 
-    <label id="label-activity-group">Напрямок активності</label>
-    <select id="activity-group-filter">
-      <option value="">Усі</option>
-    </select>
+<label>Період до</label>
+<input type="date">
 
-    <label id="label-activity-type">Тип активності</label>
-    <select id="activity-type-filter">
-      <option value="">Усі</option>
-    </select>
+<label>Напрямок активності</label>
+<select>
+<option>Усі</option>
+<option>Distributions</option>
+<option>Emergency Team</option>
+</select>
 
-    <label id="label-assistance-type">Тип допомоги</label>
-    <select id="assistance-type-filter">
-      <option value="">Усі</option>
-    </select>
+<label>Тип активності</label>
+<select>
+<option>Усі</option>
+<option>WASH</option>
+<option>Emergency</option>
+</select>
 
-    <label id="label-metric">Показник</label>
-    <select id="metric-filter">
-      <option value="event_count">Події</option>
-    </select>
+<label>Тип допомоги</label>
+<select>
+<option>Усі</option>
+<option>Emergency Hygiene Kit</option>
+</select>
 
-    <button id="apply-filters">Застосувати фільтри</button>
-    <button id="reset-filters">Скинути фільтри</button>
-    <button id="refresh-data">Оновити дані</button>
+<label>Показник</label>
+<select>
+<option>Події</option>
+<option>People</option>
+<option>Kits</option>
+</select>
 
-    <div id="summary-box" class="summary-box"></div>
-  `;
+<button class="primary-btn">
+Застосувати фільтри
+</button>
 
-  L.DomEvent.disableClickPropagation(div);
-  L.DomEvent.disableScrollPropagation(div);
+<button class="secondary-btn">
+Скинути фільтри
+</button>
 
-  return div;
+<button class="secondary-btn">
+Оновити дані
+</button>
+
+<div class="stats-grid">
+
+<div class="stat-card">
+<div class="stat-label">Events</div>
+<div class="stat-value">24</div>
+</div>
+
+<div class="stat-card">
+<div class="stat-label">People</div>
+<div class="stat-value">1480</div>
+</div>
+
+<div class="stat-card">
+<div class="stat-label">Kits</div>
+<div class="stat-value">624</div>
+</div>
+
+<div class="stat-card">
+<div class="stat-label">Children</div>
+<div class="stat-value">312</div>
+</div>
+
+<div class="stat-card">
+<div class="stat-label">Adults</div>
+<div class="stat-value">1168</div>
+</div>
+
+<div class="stat-card">
+<div class="stat-label">Households</div>
+<div class="stat-value">208</div>
+</div>
+
+</div>
+`;
+
+L.DomEvent.disableClickPropagation(div);
+L.DomEvent.disableScrollPropagation(div);
+
+return div;
 };
 
 control.addTo(map);
 
-const mapActionsControl = L.control({ position: "topleft" });
+const actions = L.control({ position: 'topleft' });
 
-mapActionsControl.onAdd = function() {
-  const div = L.DomUtil.create("div", "map-actions-control");
+actions.onAdd = function() {
 
-  div.innerHTML = `
-    <button id="toggle-filters-btn" class="map-action-btn" title="Show / hide filters">☰</button>
-    <button id="export-png-btn" class="map-action-btn" title="Export PNG">📷</button>
-  `;
+const div = L.DomUtil.create('div', 'map-actions-control');
 
-  L.DomEvent.disableClickPropagation(div);
-  L.DomEvent.disableScrollPropagation(div);
+div.innerHTML = `
+<button id="togglePanelBtn" class="map-action-btn" title="Показати / приховати панель">☰</button>
+<button id="screenshotBtn" class="map-action-btn" title="Експорт PNG">📷</button>
+`;
 
-  return div;
+return div;
 };
 
-mapActionsControl.addTo(map);
-
-async function exportMapToPng() {
-  const button = document.getElementById("export-png-btn");
-  button.disabled = true;
-  button.textContent = "…";
-
-  try {
-    const canvas = await html2canvas(document.getElementById("map"), {
-      useCORS: true,
-      allowTaint: false,
-      backgroundColor: null,
-      logging: false
-    });
-
-    const link = document.createElement("a");
-    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-
-    link.download = `unicef-activity-heatmap-${timestamp}.png`;
-    link.href = canvas.toDataURL("image/png");
-    link.click();
-  } catch (error) {
-    console.error(error);
-    alert(
-      lang === "uk"
-        ? "Не вдалося створити PNG. Спробуй ще раз або перевір консоль."
-        : "Failed to export PNG. Try again or check console."
-    );
-  } finally {
-    button.disabled = false;
-    button.textContent = "📷";
-  }
-}
+actions.addTo(map);
 
 setTimeout(() => {
-  document.getElementById("activity-group-filter").addEventListener("change", () => {
-    updateActivityTypeOptions();
-    applyFilters();
-  });
 
-  document.getElementById("activity-type-filter").addEventListener("change", applyFilters);
-  document.getElementById("assistance-type-filter").addEventListener("change", applyFilters);
-  document.getElementById("metric-filter").addEventListener("change", applyFilters);
-  document.getElementById("date-from-filter").addEventListener("change", applyFilters);
-  document.getElementById("date-to-filter").addEventListener("change", applyFilters);
+document.getElementById('togglePanelBtn')
+.addEventListener('click', () => {
 
-  document.getElementById("apply-filters").addEventListener("click", applyFilters);
+document.querySelector('.control-box')
+.classList.toggle('hidden-panel');
 
-  document.getElementById("toggle-filters-btn").addEventListener("click", () => {
-    document.querySelector(".control-box").classList.toggle("hidden-panel");
-  });
-
-  document.getElementById("export-png-btn").addEventListener("click", exportMapToPng);
-
-  document.getElementById("refresh-data").addEventListener("click", async () => {
-    await refreshLiveData();
-  });
-
-  document.getElementById("reset-filters").addEventListener("click", () => {
-    document.getElementById("date-from-filter").value = "";
-    document.getElementById("date-to-filter").value = "";
-
-    document.getElementById("activity-group-filter").value = "";
-    updateActivityTypeOptions();
-    document.getElementById("activity-type-filter").value = "";
-    document.getElementById("assistance-type-filter").value = "";
-    document.getElementById("metric-filter").value = metricsConfig.default_metric;
-
-    applyFilters();
-  });
-
-  async function switchLanguage(newLang) {
-    lang = newLang;
-    localStorage.setItem("lang", lang);
-
-    await loadI18n();
-
-    translateStaticUI();
-    populateControls();
-    updateActivityTypeOptions();
-    applyFilters();
-  }
-
-  document.getElementById("lang-uk").addEventListener("click", async () => {
-    await switchLanguage("uk");
-  });
-
-  document.getElementById("lang-en").addEventListener("click", async () => {
-    await switchLanguage("en");
-  });
-}, 0);
-
-init().catch(error => {
-  console.error(error);
-  document.getElementById("summary-box").innerHTML =
-    `<b>Initialization error</b><br>${error.message}`;
 });
+
+document.getElementById('screenshotBtn')
+.addEventListener('click', async () => {
+
+const canvas = await html2canvas(
+document.getElementById('map'),
+{
+useCORS: true,
+backgroundColor: null
+}
+);
+
+const link = document.createElement('a');
+
+link.download = 'unicef-activity-heatmap.png';
+link.href = canvas.toDataURL('image/png');
+link.click();
+
+});
+
+}, 100);
+
 </script>
 </body>
 </html>
