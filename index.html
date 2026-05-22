@@ -579,6 +579,23 @@ function normalizeDateValue(value) {
   return "";
 }
 
+
+function normalizeValueForCompare(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[`ʼ']/g, "’")
+    .replace(/\s+/g, " ");
+}
+
+function valuesMatch(a, b) {
+  return normalizeValueForCompare(a) === normalizeValueForCompare(b);
+}
+
+function getSelectedMetricId() {
+  return document.getElementById("metric-filter")?.value || metricsConfig.default_metric || "event_count";
+}
+
 function getText(path, fallback = "") {
   return path.split(".").reduce((obj, key) => obj && obj[key], t) || fallback;
 }
@@ -619,6 +636,29 @@ async function loadLiveActivities() {
   return Array.isArray(rows)
     ? rows.map(normalizeActivityRow)
     : [];
+}
+
+
+function normalizeActivityGroup(value) {
+  const normalized = normalizeValueForCompare(value);
+
+  const aliases = {
+    "distributions": "distributions",
+    "distribution": "distributions",
+    "дистрибуції": "distributions",
+    "дистрибуция": "distributions",
+    "emergency team": "emergency_team",
+    "emergency_team": "emergency_team",
+    "mobile medical teams": "mobile_medical_teams",
+    "mobile_medical_teams": "mobile_medical_teams",
+    "cash assistance": "cash_assistance",
+    "cash_assistance": "cash_assistance",
+    "training sessions": "training_sessions",
+    "training_sessions": "training_sessions",
+    "repair": "repair"
+  };
+
+  return aliases[normalized] || value || "";
 }
 
 function normalizeActivityRow(row) {
@@ -694,18 +734,16 @@ function activityToFeature(record) {
 }
 
 function getCurrentMetricField() {
-  const metricId = document.getElementById("metric-filter")?.value ||
-    metricsConfig.default_metric;
-
+  const metricId = getSelectedMetricId();
   const metric = getMetricConfigById(metricId);
   return metric ? metric.field : "event_count";
 }
 
 function applyFilters() {
-  const group = document.getElementById("activity-group-filter").value;
-  const type = document.getElementById("activity-type-filter").value;
-  const assistance = document.getElementById("assistance-type-filter").value;
-  const metricField = getCurrentMetricField();
+  const selectedGroup = document.getElementById("activity-group-filter").value;
+  const selectedType = document.getElementById("activity-type-filter").value;
+  const selectedAssistance = document.getElementById("assistance-type-filter").value;
+  const selectedMetricField = getCurrentMetricField();
 
   const dateFromValue = document.getElementById("date-from-filter").value;
   const dateToValue = document.getElementById("date-to-filter").value;
@@ -714,24 +752,39 @@ function applyFilters() {
   const dateTo = dateToValue ? new Date(dateToValue + "T23:59:59") : null;
 
   filteredActivities = activities.filter(item => {
-    const okGroup = !group || item.activity_group === group;
-    const okType = !type || item.activity_type === type;
-    const okAssistance = !assistance || item.assistance_type === assistance;
+    const itemGroup = normalizeActivityGroup(item.activity_group);
+
+    const okGroup =
+      !selectedGroup ||
+      valuesMatch(itemGroup, selectedGroup);
+
+    const okType =
+      !selectedType ||
+      valuesMatch(item.activity_type, selectedType);
+
+    const okAssistance =
+      !selectedAssistance ||
+      valuesMatch(item.assistance_type, selectedAssistance);
 
     let okDate = true;
 
     if (item.activity_date) {
       const activityDate = new Date(item.activity_date + "T12:00:00");
 
-      if (dateFrom && activityDate < dateFrom) okDate = false;
-      if (dateTo && activityDate > dateTo) okDate = false;
+      if (dateFrom && activityDate < dateFrom) {
+        okDate = false;
+      }
+
+      if (dateTo && activityDate > dateTo) {
+        okDate = false;
+      }
     }
 
     return okGroup && okType && okAssistance && okDate;
   });
 
-  renderMap(filteredActivities, metricField);
-  updateSummary(filteredActivities, metricField);
+  renderMap(filteredActivities, selectedMetricField);
+  updateSummary(filteredActivities, selectedMetricField);
 }
 
 function renderMap(records, metricField) {
