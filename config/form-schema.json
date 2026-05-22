@@ -243,11 +243,16 @@
       },
       "fields": [
         {
-          "id": "training_type",
-          "type": "text",
+          "id": "activity_type",
+          "type": "select",
           "required": true,
+          "options": [
+            "Behavior during shelling",
+            "Mine safety awareness",
+            "First aid basics"
+          ],
           "label": {
-            "uk": "Тип навчання",
+            "uk": "Тип тренінгу",
             "en": "Training type"
           }
         },
