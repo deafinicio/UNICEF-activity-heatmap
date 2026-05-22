@@ -376,6 +376,12 @@ function getMetricLabel(id) {
   return getText("metrics." + id, id);
 }
 
+function getBilingualLabel(key, ukFallback, enFallback) {
+  return lang === "uk"
+    ? getText(key, ukFallback)
+    : getText(key, enFallback);
+}
+
 async function loadLiveActivities() {
   const response = await fetch(APPS_SCRIPT_DATA_URL + "?nocache=" + Date.now());
 
@@ -610,39 +616,39 @@ function updateSummary(records, metricField) {
   document.getElementById("summary-box").innerHTML = `
     <div class="stats-grid">
       <div class="stat-card">
-        <div class="stat-label">${getText("summary.events", "Events")}</div>
+        <div class="stat-label">${getBilingualLabel("summary.events", "Події", "Events")}</div>
         <div class="stat-value">${totalEvents}</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">${getText("summary.people", "People")}</div>
+        <div class="stat-label">${getBilingualLabel("summary.people", "Люди", "People")}</div>
         <div class="stat-value">${totalPeople}</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">${getText("summary.kits", "Kits")}</div>
+        <div class="stat-label">${getBilingualLabel("summary.kits", "Набори", "Kits")}</div>
         <div class="stat-value">${totalKits}</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">${getText("summary.children", "Children")}</div>
+        <div class="stat-label">${getBilingualLabel("summary.children", "Діти", "Children")}</div>
         <div class="stat-value">${totalChildren}</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">${getText("summary.adults", "Adults")}</div>
+        <div class="stat-label">${getBilingualLabel("summary.adults", "Дорослі", "Adults")}</div>
         <div class="stat-value">${totalAdults}</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">HH</div>
+        <div class="stat-label">${getBilingualLabel("summary.households", "Домогосп.", "HH")}</div>
         <div class="stat-value">${totalHouseholds}</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">Consult.</div>
+        <div class="stat-label">${getBilingualLabel("summary.consultations", "Консульт.", "Consult.")}</div>
         <div class="stat-value">${totalConsultations}</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">${getText("summary.currentMetric", "Metric")}</div>
+        <div class="stat-label">${getBilingualLabel("summary.currentMetric", "Показник", "Metric")}</div>
         <div class="stat-value">${totalMetric}</div>
       </div>
       <div class="stat-card wide">
-        <div class="stat-label">${getText("summary.visibleRecords", "Visible records")}</div>
+        <div class="stat-label">${getBilingualLabel("summary.visibleRecords", "Видимі записи", "Visible records")}</div>
         <div class="stat-value">${records.length}</div>
       </div>
     </div>
