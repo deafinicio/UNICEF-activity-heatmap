@@ -1,40 +1,29 @@
 {
   "default_metric": "event_count",
   "metrics": [
-    {
-      "id": "event_count",
-      "label": "Events",
-      "field": "event_count"
-    },
-    {
-      "id": "people_total",
-      "label": "People reached",
-      "field": "people_total"
-    },
-    {
-      "id": "kits_total",
-      "label": "Kits distributed",
-      "field": "kits_total"
-    },
-    {
-      "id": "children_total",
-      "label": "Children",
-      "field": "children_total"
-    },
-    {
-      "id": "adults_total",
-      "label": "Adults",
-      "field": "adults_total"
-    },
-    {
-      "id": "households_total",
-      "label": "Households",
-      "field": "households_total"
-    },
-    {
-      "id": "consultations_total",
-      "label": "Consultations",
-      "field": "consultations_total"
-    }
+    { "id": "event_count",          "label": { "uk": "Події",              "en": "Events" },              "field": "event_count" },
+    { "id": "people_total",         "label": { "uk": "Охоплено людей",     "en": "People reached" },       "field": "people_total" },
+    { "id": "kits_total",           "label": { "uk": "Видано наборів",     "en": "Kits distributed" },     "field": "kits_total" },
+    { "id": "children_total",       "label": { "uk": "Діти",               "en": "Children" },             "field": "children_total" },
+    { "id": "adults_total",         "label": { "uk": "Дорослі",            "en": "Adults" },               "field": "adults_total" },
+    { "id": "households_total",     "label": { "uk": "Домогосподарства",   "en": "Households" },           "field": "households_total" },
+    { "id": "consultations_total",  "label": { "uk": "Консультації",       "en": "Consultations" },        "field": "consultations_total" },
+    { "id": "female_total",         "label": { "uk": "Жінки / дівчата",   "en": "Female" },               "field": "female_total" },
+    { "id": "male_total",           "label": { "uk": "Чоловіки / хлопці", "en": "Male" },                 "field": "male_total" },
+    { "id": "female_0_4",           "label": { "uk": "Дівчата 0–4",       "en": "Female 0–4" },           "field": "female_0_4" },
+    { "id": "male_0_4",             "label": { "uk": "Хлопці 0–4",        "en": "Male 0–4" },             "field": "male_0_4" },
+    { "id": "female_5_9",           "label": { "uk": "Дівчата 5–9",       "en": "Female 5–9" },           "field": "female_5_9" },
+    { "id": "male_5_9",             "label": { "uk": "Хлопці 5–9",        "en": "Male 5–9" },             "field": "male_5_9" },
+    { "id": "female_10_14",         "label": { "uk": "Дівчата 10–14",     "en": "Female 10–14" },         "field": "female_10_14" },
+    { "id": "male_10_14",           "label": { "uk": "Хлопці 10–14",      "en": "Male 10–14" },           "field": "male_10_14" },
+    { "id": "female_15_17",         "label": { "uk": "Дівчата 15–17",     "en": "Female 15–17" },         "field": "female_15_17" },
+    { "id": "male_15_17",           "label": { "uk": "Хлопці 15–17",      "en": "Male 15–17" },           "field": "male_15_17" },
+    { "id": "female_18_plus",       "label": { "uk": "Жінки 18+",         "en": "Female 18+" },           "field": "female_18_plus" },
+    { "id": "male_18_plus",         "label": { "uk": "Чоловіки 18+",      "en": "Male 18+" },             "field": "male_18_plus" },
+    { "id": "age_0_4_total",        "label": { "uk": "Усі 0–4",           "en": "All 0–4" },              "field": "age_0_4_total" },
+    { "id": "age_5_9_total",        "label": { "uk": "Усі 5–9",           "en": "All 5–9" },              "field": "age_5_9_total" },
+    { "id": "age_10_14_total",      "label": { "uk": "Усі 10–14",         "en": "All 10–14" },            "field": "age_10_14_total" },
+    { "id": "age_15_17_total",      "label": { "uk": "Усі 15–17",         "en": "All 15–17" },            "field": "age_15_17_total" },
+    { "id": "age_18_plus_total",    "label": { "uk": "Усі 18+",           "en": "All 18+" },              "field": "age_18_plus_total" }
   ]
 }
