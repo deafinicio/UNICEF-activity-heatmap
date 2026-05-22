@@ -24,19 +24,19 @@
 
   .control-box {
     background: #fff;
-    padding: 10px;
+    padding: 8px;
     border-radius: 8px;
     box-shadow: 0 1px 6px rgba(0,0,0,.25);
-    font-size: 14px;
-    width: 280px;
-    max-height: calc(100vh - 40px);
+    font-size: 12px;
+    width: 255px;
+    max-height: calc(100vh - 28px);
     overflow-y: auto;
     overflow-x: hidden;
   }
 
   .control-box label {
     display: block;
-    margin-top: 8px;
+    margin-top: 6px;
     font-weight: 600;
   }
 
@@ -45,19 +45,21 @@
   .control-box button {
     width: 100%;
     box-sizing: border-box;
-    margin-top: 4px;
-    padding: 6px;
+    margin-top: 3px;
+    padding: 4px 6px;
+    font-size: 12px;
   }
 
   .control-title {
     font-weight: 700;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
+    font-size: 13px;
   }
 
   .lang-row {
     display: flex;
     gap: 6px;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
   }
 
   .lang-row button {
@@ -66,16 +68,20 @@
   }
 
   .summary-box {
-    margin-top: 8px;
-    padding: 8px;
+    margin-top: 7px;
+    padding: 7px;
     background: #f5f5f5;
     border-radius: 6px;
-    font-size: 13px;
+    font-size: 12px;
+    line-height: 1.28;
+    max-height: 170px;
+    overflow-y: auto;
+    overflow-x: hidden;
   }
 
   .status-line {
-    margin-top: 8px;
-    font-size: 12px;
+    margin-top: 6px;
+    font-size: 11px;
     color: #555;
   }
 
@@ -83,15 +89,13 @@
     display: none;
   }
 
-.leaflet-control.map-actions-control {
+  .leaflet-control.map-actions-control {
     display: flex;
     flex-direction: column;
-    align-items: flex-end;
-    position: relative;
-    z-index: 99999;
-    margin-top: 10px;
-    margin-right: 10px;
-}
+    align-items: flex-start;
+    margin-top: 72px;
+    margin-left: 10px;
+  }
 
   .map-action-btn {
     background: #fff;
