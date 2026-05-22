@@ -222,10 +222,21 @@
 
   .leaflet-bottom.leaflet-left .leaflet-control-layers form {
     display: flex;
-    flex-wrap: wrap;
-    gap: 8px 12px;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    gap: 10px;
+    align-items: center;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+  .leaflet-bottom.leaflet-left .leaflet-control-layers-base,
+  .leaflet-bottom.leaflet-left .leaflet-control-layers-overlays {
+    display: flex;
+    flex-direction: row;
+    gap: 10px;
     align-items: center;
   }
+
 
   .leaflet-bottom.leaflet-left .leaflet-control-layers label {
     margin: 0;
