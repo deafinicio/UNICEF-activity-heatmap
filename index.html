@@ -209,6 +209,33 @@
     font-size: 12px;
   }
 
+
+  .leaflet-bottom.leaflet-left .leaflet-control-layers {
+    max-width: calc(100vw - 24px);
+    padding: 7px 10px;
+    border-radius: 14px !important;
+    background: rgba(255,255,255,.96);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 6px 20px rgba(15,23,42,.18);
+    font-size: 12px;
+  }
+
+  .leaflet-bottom.leaflet-left .leaflet-control-layers form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+    align-items: center;
+  }
+
+  .leaflet-bottom.leaflet-left .leaflet-control-layers label {
+    margin: 0;
+    white-space: nowrap;
+  }
+
+  .leaflet-bottom.leaflet-left .leaflet-control-layers-separator {
+    display: none;
+  }
+
   @media (max-height: 760px) {
     .control-box {
       width: 235px;
@@ -318,7 +345,119 @@ const overlays = {
   "Heatmap": heatProxy
 };
 
-L.control.layers(baseLayers, overlays, { collapsed: false }).addTo(map);
+
+const EXTRA_METRICS = [
+  {
+    id: "female_total",
+    field: "female_total",
+    label: { uk: "Жінки / дівчата", en: "Female" }
+  },
+  {
+    id: "male_total",
+    field: "male_total",
+    label: { uk: "Чоловіки / хлопці", en: "Male" }
+  },
+  {
+    id: "children_total",
+    field: "children_total",
+    label: { uk: "Діти 0–17", en: "Children 0–17" }
+  },
+  {
+    id: "adults_total",
+    field: "adults_total",
+    label: { uk: "Дорослі 18+", en: "Adults 18+" }
+  },
+  {
+    id: "female_0_4",
+    field: "female_0_4",
+    label: { uk: "Дівчата 0–4", en: "Female 0–4" }
+  },
+  {
+    id: "male_0_4",
+    field: "male_0_4",
+    label: { uk: "Хлопці 0–4", en: "Male 0–4" }
+  },
+  {
+    id: "female_5_9",
+    field: "female_5_9",
+    label: { uk: "Дівчата 5–9", en: "Female 5–9" }
+  },
+  {
+    id: "male_5_9",
+    field: "male_5_9",
+    label: { uk: "Хлопці 5–9", en: "Male 5–9" }
+  },
+  {
+    id: "female_10_14",
+    field: "female_10_14",
+    label: { uk: "Дівчата 10–14", en: "Female 10–14" }
+  },
+  {
+    id: "male_10_14",
+    field: "male_10_14",
+    label: { uk: "Хлопці 10–14", en: "Male 10–14" }
+  },
+  {
+    id: "female_15_17",
+    field: "female_15_17",
+    label: { uk: "Дівчата 15–17", en: "Female 15–17" }
+  },
+  {
+    id: "male_15_17",
+    field: "male_15_17",
+    label: { uk: "Хлопці 15–17", en: "Male 15–17" }
+  },
+  {
+    id: "female_18_plus",
+    field: "female_18_plus",
+    label: { uk: "Жінки 18+", en: "Female 18+" }
+  },
+  {
+    id: "male_18_plus",
+    field: "male_18_plus",
+    label: { uk: "Чоловіки 18+", en: "Male 18+" }
+  },
+  {
+    id: "age_0_4_total",
+    field: "age_0_4_total",
+    label: { uk: "Усі 0–4", en: "All 0–4" }
+  },
+  {
+    id: "age_5_9_total",
+    field: "age_5_9_total",
+    label: { uk: "Усі 5–9", en: "All 5–9" }
+  },
+  {
+    id: "age_10_14_total",
+    field: "age_10_14_total",
+    label: { uk: "Усі 10–14", en: "All 10–14" }
+  },
+  {
+    id: "age_15_17_total",
+    field: "age_15_17_total",
+    label: { uk: "Усі 15–17", en: "All 15–17" }
+  },
+  {
+    id: "age_18_plus_total",
+    field: "age_18_plus_total",
+    label: { uk: "Усі 18+", en: "All 18+" }
+  }
+];
+
+function getAllMetrics() {
+  const baseMetrics = metricsConfig && Array.isArray(metricsConfig.metrics)
+    ? metricsConfig.metrics
+    : [];
+
+  return baseMetrics.concat(EXTRA_METRICS);
+}
+
+function getMetricConfigById(metricId) {
+  return getAllMetrics().find(metric => metric.id === metricId);
+}
+
+
+L.control.layers(baseLayers, overlays, { collapsed: false, position: "bottomleft" }).addTo(map);
 
 map.addLayer(clusterLayer);
 map.addLayer(heatProxy);
@@ -373,6 +512,12 @@ function getActivityGroupLabel(id) {
 }
 
 function getMetricLabel(id) {
+  const extraMetric = EXTRA_METRICS.find(metric => metric.id === id);
+
+  if (extraMetric) {
+    return extraMetric.label[lang] || extraMetric.label.en || id;
+  }
+
   return getText("metrics." + id, id);
 }
 
@@ -472,7 +617,7 @@ function getCurrentMetricField() {
   const metricId = document.getElementById("metric-filter")?.value ||
     metricsConfig.default_metric;
 
-  const metric = metricsConfig.metrics.find(m => m.id === metricId);
+  const metric = getMetricConfigById(metricId);
   return metric ? metric.field : "event_count";
 }
 
@@ -687,7 +832,7 @@ function populateControls() {
   }
 
   metricSelect.innerHTML = "";
-  metricsConfig.metrics.forEach(metric => {
+  getAllMetrics().forEach(metric => {
     metricSelect.innerHTML += `<option value="${metric.id}">${getMetricLabel(metric.id)}</option>`;
   });
 
