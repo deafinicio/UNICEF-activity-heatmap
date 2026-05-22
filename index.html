@@ -75,19 +75,35 @@
     font-size: 12px;
     color: #555;
   }
-  .toggle-filters-btn {
-  background: #fff;
-  border: 1px solid #999;
-  border-radius: 6px;
-  padding: 8px 10px;
-  box-shadow: 0 1px 6px rgba(0,0,0,.25);
-  cursor: pointer;
-  font-size: 16px;
-}
 
-.control-box.hidden-panel {
-  display: none;
-}
+  .control-box.hidden-panel {
+    display: none;
+  }
+
+  .leaflet-control.map-actions-control {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+  }
+
+  .map-action-btn {
+    background: #fff;
+    border: 1px solid #999;
+    border-radius: 6px;
+    width: 38px;
+    height: 38px;
+    box-shadow: 0 1px 6px rgba(0,0,0,.25);
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 1;
+    display: block;
+    margin-bottom: 6px;
+  }
+
+  .map-action-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
 </style>
 </head>
 
@@ -97,6 +113,7 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 <script src="https://leaflet.github.io/Leaflet.heat/dist/leaflet-heat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 
 <script>
 const PATHS = {
@@ -132,6 +149,7 @@ const osm = L.tileLayer(
   "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
   {
     maxZoom: 19,
+    crossOrigin: true,
     attribution: "&copy; OpenStreetMap"
   }
 ).addTo(map);
@@ -140,6 +158,7 @@ const carto = L.tileLayer(
   "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
   {
     maxZoom: 20,
+    crossOrigin: true,
     attribution: "&copy; OpenStreetMap &copy; CARTO"
   }
 );
@@ -512,29 +531,47 @@ function populateControls() {
   const assistanceSelect = document.getElementById("assistance-type-filter");
   const metricSelect = document.getElementById("metric-filter");
 
+  const selectedGroup = groupSelect.value;
+  const selectedType = typeSelect.value;
+  const selectedAssistance = assistanceSelect.value;
+  const selectedMetric = metricSelect.value;
+
   groupSelect.innerHTML = `<option value="">${getText("filters.all", "All")}</option>`;
   activityConfig.activity_groups.forEach(group => {
     groupSelect.innerHTML += `<option value="${group.id}">${getActivityGroupLabel(group.id)}</option>`;
   });
 
-  typeSelect.innerHTML = `<option value="">${getText("filters.all", "All")}</option>`;
-  assistanceSelect.innerHTML = `<option value="">${getText("filters.all", "All")}</option>`;
+  if ([...groupSelect.options].some(option => option.value === selectedGroup)) {
+    groupSelect.value = selectedGroup;
+  }
 
+  updateActivityTypeOptions(selectedType);
+
+  assistanceSelect.innerHTML = `<option value="">${getText("filters.all", "All")}</option>`;
   activityConfig.assistance_types.forEach(type => {
     assistanceSelect.innerHTML += `<option value="${type}">${type}</option>`;
   });
+
+  if ([...assistanceSelect.options].some(option => option.value === selectedAssistance)) {
+    assistanceSelect.value = selectedAssistance;
+  }
 
   metricSelect.innerHTML = "";
   metricsConfig.metrics.forEach(metric => {
     metricSelect.innerHTML += `<option value="${metric.id}">${getMetricLabel(metric.id)}</option>`;
   });
 
-  metricSelect.value = metricsConfig.default_metric;
+  metricSelect.value =
+    [...metricSelect.options].some(option => option.value === selectedMetric)
+      ? selectedMetric
+      : metricsConfig.default_metric;
 }
 
-function updateActivityTypeOptions() {
+function updateActivityTypeOptions(preferredValue = "") {
   const groupId = document.getElementById("activity-group-filter").value;
   const typeSelect = document.getElementById("activity-type-filter");
+
+  const currentValue = preferredValue || typeSelect.value;
 
   typeSelect.innerHTML = `<option value="">${getText("filters.all", "All")}</option>`;
 
@@ -544,6 +581,10 @@ function updateActivityTypeOptions() {
   group.activity_types.forEach(type => {
     typeSelect.innerHTML += `<option value="${type}">${type}</option>`;
   });
+
+  if ([...typeSelect.options].some(option => option.value === currentValue)) {
+    typeSelect.value = currentValue;
+  }
 }
 
 function translateStaticUI() {
@@ -578,6 +619,12 @@ function translateStaticUI() {
 
   document.getElementById("refresh-data").textContent =
     getText("buttons.refreshData", "Refresh data");
+
+  document.getElementById("toggle-filters-btn").title =
+    getText("buttons.showHideFilters", "Show / hide filters");
+
+  document.getElementById("export-png-btn").title =
+    getText("buttons.exportPng", "Export PNG");
 }
 
 async function loadI18n() {
@@ -627,35 +674,35 @@ control.onAdd = function() {
       UNICEF Activity Heatmap
     </div>
 
-<label id="label-date-from">Період від</label>
-<input type="date" id="date-from-filter">
+    <label id="label-date-from">Період від</label>
+    <input type="date" id="date-from-filter">
 
-<label id="label-date-to">Період до</label>
-<input type="date" id="date-to-filter">
+    <label id="label-date-to">Період до</label>
+    <input type="date" id="date-to-filter">
 
-<label id="label-activity-group">Напрямок активності</label>
-<select id="activity-group-filter">
-  <option value="">Усі</option>
-</select>
+    <label id="label-activity-group">Напрямок активності</label>
+    <select id="activity-group-filter">
+      <option value="">Усі</option>
+    </select>
 
-<label id="label-activity-type">Тип активності</label>
-<select id="activity-type-filter">
-  <option value="">Усі</option>
-</select>
+    <label id="label-activity-type">Тип активності</label>
+    <select id="activity-type-filter">
+      <option value="">Усі</option>
+    </select>
 
-<label id="label-assistance-type">Тип допомоги</label>
-<select id="assistance-type-filter">
-  <option value="">Усі</option>
-</select>
+    <label id="label-assistance-type">Тип допомоги</label>
+    <select id="assistance-type-filter">
+      <option value="">Усі</option>
+    </select>
 
-<label id="label-metric">Показник</label>
-<select id="metric-filter">
-  <option value="event_count">Події</option>
-</select>
+    <label id="label-metric">Показник</label>
+    <select id="metric-filter">
+      <option value="event_count">Події</option>
+    </select>
 
-<button id="apply-filters">Застосувати фільтри</button>
-<button id="reset-filters">Скинути фільтри</button>
-<button id="refresh-data">Оновити дані</button>
+    <button id="apply-filters">Застосувати фільтри</button>
+    <button id="reset-filters">Скинути фільтри</button>
+    <button id="refresh-data">Оновити дані</button>
 
     <div id="summary-box" class="summary-box"></div>
   `;
@@ -668,20 +715,14 @@ control.onAdd = function() {
 
 control.addTo(map);
 
-setTimeout(() => {
-  document.getElementById("activity-group-filter").addEventListener("change", () => {
-    updateActivityTypeOptions();
-    applyFilters();
-  });
-const toggleFiltersControl = L.control({ position: "topright" });
+const mapActionsControl = L.control({ position: "topright" });
 
-toggleFiltersControl.onAdd = function() {
-  const div = L.DomUtil.create("div");
+mapActionsControl.onAdd = function() {
+  const div = L.DomUtil.create("div", "map-actions-control");
 
   div.innerHTML = `
-    <button id="toggle-filters-btn" class="toggle-filters-btn" title="Show / hide filters">
-      ⚙️
-    </button>
+    <button id="toggle-filters-btn" class="map-action-btn" title="Show / hide filters">☰</button>
+    <button id="export-png-btn" class="map-action-btn" title="Export PNG">📷</button>
   `;
 
   L.DomEvent.disableClickPropagation(div);
@@ -690,7 +731,46 @@ toggleFiltersControl.onAdd = function() {
   return div;
 };
 
-toggleFiltersControl.addTo(map);
+mapActionsControl.addTo(map);
+
+async function exportMapToPng() {
+  const button = document.getElementById("export-png-btn");
+  button.disabled = true;
+  button.textContent = "…";
+
+  try {
+    const canvas = await html2canvas(document.getElementById("map"), {
+      useCORS: true,
+      allowTaint: false,
+      backgroundColor: null,
+      logging: false
+    });
+
+    const link = document.createElement("a");
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+
+    link.download = `unicef-activity-heatmap-${timestamp}.png`;
+    link.href = canvas.toDataURL("image/png");
+    link.click();
+  } catch (error) {
+    console.error(error);
+    alert(
+      lang === "uk"
+        ? "Не вдалося створити PNG. Спробуй ще раз або перевір консоль."
+        : "Failed to export PNG. Try again or check console."
+    );
+  } finally {
+    button.disabled = false;
+    button.textContent = "📷";
+  }
+}
+
+setTimeout(() => {
+  document.getElementById("activity-group-filter").addEventListener("change", () => {
+    updateActivityTypeOptions();
+    applyFilters();
+  });
+
   document.getElementById("activity-type-filter").addEventListener("change", applyFilters);
   document.getElementById("assistance-type-filter").addEventListener("change", applyFilters);
   document.getElementById("metric-filter").addEventListener("change", applyFilters);
@@ -698,9 +778,13 @@ toggleFiltersControl.addTo(map);
   document.getElementById("date-to-filter").addEventListener("change", applyFilters);
 
   document.getElementById("apply-filters").addEventListener("click", applyFilters);
-document.getElementById("toggle-filters-btn").addEventListener("click", () => {
-  document.querySelector(".control-box").classList.toggle("hidden-panel");
-});
+
+  document.getElementById("toggle-filters-btn").addEventListener("click", () => {
+    document.querySelector(".control-box").classList.toggle("hidden-panel");
+  });
+
+  document.getElementById("export-png-btn").addEventListener("click", exportMapToPng);
+
   document.getElementById("refresh-data").addEventListener("click", async () => {
     await refreshLiveData();
   });
@@ -719,24 +803,24 @@ document.getElementById("toggle-filters-btn").addEventListener("click", () => {
   });
 
   async function switchLanguage(newLang) {
-  lang = newLang;
-  localStorage.setItem("lang", lang);
+    lang = newLang;
+    localStorage.setItem("lang", lang);
 
-  await loadI18n();
+    await loadI18n();
 
-  translateStaticUI();
-  populateControls();
-  updateActivityTypeOptions();
-  applyFilters();
-}
+    translateStaticUI();
+    populateControls();
+    updateActivityTypeOptions();
+    applyFilters();
+  }
 
-document.getElementById("lang-uk").addEventListener("click", async () => {
-  await switchLanguage("uk");
-});
+  document.getElementById("lang-uk").addEventListener("click", async () => {
+    await switchLanguage("uk");
+  });
 
-document.getElementById("lang-en").addEventListener("click", async () => {
-  await switchLanguage("en");
-});
+  document.getElementById("lang-en").addEventListener("click", async () => {
+    await switchLanguage("en");
+  });
 }, 0);
 
 init().catch(error => {
