@@ -15,7 +15,7 @@
   html, body {
     height: 100%;
     margin: 0;
-    font-family: Arial, sans-serif;
+    font-family: Inter, Arial, sans-serif;
   }
 
   #map {
@@ -23,70 +23,151 @@
   }
 
   .control-box {
-    background: #fff;
-    padding: 8px;
-    border-radius: 8px;
-    box-shadow: 0 1px 6px rgba(0,0,0,.25);
-    font-size: 12px;
-    width: 255px;
-    max-height: calc(100vh - 28px);
-    overflow-y: auto;
-    overflow-x: hidden;
-  }
-
-  .control-box label {
-    display: block;
-    margin-top: 6px;
-    font-weight: 600;
-  }
-
-  .control-box select,
-  .control-box input,
-  .control-box button {
-    width: 100%;
-    box-sizing: border-box;
-    margin-top: 3px;
-    padding: 4px 6px;
-    font-size: 12px;
-  }
-
-  .control-title {
-    font-weight: 700;
-    margin-bottom: 6px;
-    font-size: 13px;
-  }
-
-  .lang-row {
-    display: flex;
-    gap: 6px;
-    margin-bottom: 6px;
-  }
-
-  .lang-row button {
-    width: 50%;
-    cursor: pointer;
-  }
-
-  .summary-box {
-    margin-top: 7px;
-    padding: 7px;
-    background: #f5f5f5;
-    border-radius: 6px;
-    font-size: 12px;
-    line-height: 1.28;
-    max-height: 170px;
-    overflow-y: auto;
-    overflow-x: hidden;
-  }
-
-  .status-line {
-    margin-top: 6px;
-    font-size: 11px;
-    color: #555;
+    width: 250px;
+    max-height: calc(100vh - 22px);
+    overflow: visible;
+    background: rgba(255, 255, 255, 0.96);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(226, 232, 240, 0.95);
+    border-radius: 14px;
+    box-shadow: 0 8px 28px rgba(15, 23, 42, 0.18);
+    padding: 10px;
+    color: #0f172a;
   }
 
   .control-box.hidden-panel {
     display: none;
+  }
+
+  .control-title {
+    font-size: 15px;
+    font-weight: 800;
+    margin: 4px 0 8px;
+    line-height: 1.15;
+  }
+
+  .lang-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+
+  .control-box label {
+    display: block;
+    margin-top: 7px;
+    margin-bottom: 3px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #334155;
+  }
+
+  .control-box input,
+  .control-box select,
+  .control-box button {
+    width: 100%;
+    box-sizing: border-box;
+    border-radius: 8px;
+    border: 1px solid #cbd5e1;
+    padding: 5px 7px;
+    font-size: 12px;
+    line-height: 1.2;
+    background: #fff;
+  }
+
+  .control-box input,
+  .control-box select {
+    height: 29px;
+  }
+
+  .control-box button {
+    cursor: pointer;
+    font-weight: 700;
+  }
+
+  .control-box input:focus,
+  .control-box select:focus {
+    outline: none;
+    border-color: #2563eb;
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.13);
+  }
+
+  .lang-row button {
+    height: 30px;
+    background: #f8fafc;
+    color: #0f172a;
+  }
+
+  .lang-row button.active-lang {
+    background: #2563eb;
+    color: #ffffff;
+    border-color: #2563eb;
+  }
+
+  .lang-row button:hover,
+  .secondary-btn:hover {
+    background: #e2e8f0;
+  }
+
+  .lang-row button.active-lang:hover {
+    background: #1d4ed8;
+  }
+
+  .primary-btn {
+    height: 30px;
+    margin-top: 9px;
+    background: #2563eb !important;
+    color: white;
+    border: 0 !important;
+  }
+
+  .primary-btn:hover {
+    background: #1d4ed8 !important;
+  }
+
+  .secondary-btn {
+    height: 28px;
+    margin-top: 5px;
+    background: #f1f5f9 !important;
+    color: #0f172a;
+  }
+
+  .stats-grid {
+    margin-top: 9px;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .stat-card {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 6px 7px;
+    min-width: 0;
+  }
+
+  .stat-label {
+    font-size: 9px;
+    line-height: 1;
+    text-transform: uppercase;
+    letter-spacing: .03em;
+    color: #64748b;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .stat-value {
+    margin-top: 3px;
+    font-size: 15px;
+    line-height: 1.05;
+    font-weight: 800;
+    color: #0f172a;
+  }
+
+  .stat-card.wide {
+    grid-column: span 2;
   }
 
   .leaflet-control.map-actions-control {
@@ -98,22 +179,75 @@
   }
 
   .map-action-btn {
-    background: #fff;
-    border: 1px solid #999;
-    border-radius: 6px;
     width: 38px;
     height: 38px;
-    box-shadow: 0 1px 6px rgba(0,0,0,.25);
+    border-radius: 10px;
+    border: 1px solid rgba(203, 213, 225, .9);
+    background: rgba(255,255,255,.96);
+    box-shadow: 0 5px 16px rgba(15,23,42,.20);
     cursor: pointer;
-    font-size: 18px;
+    font-size: 17px;
     line-height: 1;
     display: block;
     margin-bottom: 6px;
   }
 
+  .map-action-btn:hover {
+    background: #ffffff;
+    transform: translateY(-1px);
+  }
+
   .map-action-btn:disabled {
     opacity: 0.6;
     cursor: not-allowed;
+  }
+
+  .leaflet-control-layers {
+    border-radius: 12px !important;
+    overflow: hidden;
+    box-shadow: 0 6px 20px rgba(15,23,42,.18);
+    font-size: 12px;
+  }
+
+  @media (max-height: 760px) {
+    .control-box {
+      width: 235px;
+      padding: 8px;
+    }
+
+    .control-title {
+      font-size: 14px;
+      margin-bottom: 6px;
+    }
+
+    .control-box label {
+      margin-top: 5px;
+      font-size: 10px;
+    }
+
+    .control-box input,
+    .control-box select,
+    .control-box button {
+      padding: 4px 6px;
+      font-size: 11px;
+    }
+
+    .control-box input,
+    .control-box select {
+      height: 26px;
+    }
+
+    .stats-grid {
+      gap: 5px;
+    }
+
+    .stat-card {
+      padding: 5px 6px;
+    }
+
+    .stat-value {
+      font-size: 13px;
+    }
   }
 </style>
 </head>
@@ -199,14 +333,14 @@ function normalizeText(value) {
     .trim()
     .toLowerCase()
     .replace(/[`ʼ']/g, "’")
-    .replace(/\s+/g, " ");
+    .replace(/\\s+/g, " ");
 }
 
 function normalizeDateValue(value) {
   if (!value) return "";
 
   if (typeof value === "string") {
-    if (/^\d{4}-\d{2}-\d{2}/.test(value)) {
+    if (/^\\d{4}-\\d{2}-\\d{2}/.test(value)) {
       return value.slice(0, 10);
     }
 
@@ -259,47 +393,35 @@ async function loadLiveActivities() {
 function normalizeActivityRow(row) {
   return {
     created_at: row.created_at || "",
-
     activity_group: row.activity_group || "",
     activity_type: row.activity_type || "",
     assistance_type: row.assistance_type || "",
     activity_date: normalizeDateValue(row.activity_date),
-
     raion: row.raion || "",
     hromada: row.hromada || "",
     settlement: row.settlement || "",
     location_raw: row.location_raw || "",
     comment: row.comment || "",
-
     event_count: safeNumber(row.event_count) || 1,
-
     people_total: safeNumber(row.people_total),
     children_total: safeNumber(row.children_total),
     adults_total: safeNumber(row.adults_total),
-
     kits_total: safeNumber(row.kits_total),
     households_total: safeNumber(row.households_total),
     consultations_total: safeNumber(row.consultations_total),
     objects_repaired: safeNumber(row.objects_repaired),
-
     female_0_4: safeNumber(row.female_0_4),
     male_0_4: safeNumber(row.male_0_4),
-
     female_5_9: safeNumber(row.female_5_9),
     male_5_9: safeNumber(row.male_5_9),
-
     female_10_14: safeNumber(row.female_10_14),
     male_10_14: safeNumber(row.male_10_14),
-
     female_15_17: safeNumber(row.female_15_17),
     male_15_17: safeNumber(row.male_15_17),
-
     female_18_plus: safeNumber(row.female_18_plus),
     male_18_plus: safeNumber(row.male_18_plus),
-
     female_total: safeNumber(row.female_total),
     male_total: safeNumber(row.male_total),
-
     age_0_4_total: safeNumber(row.age_0_4_total),
     age_5_9_total: safeNumber(row.age_5_9_total),
     age_10_14_total: safeNumber(row.age_10_14_total),
@@ -349,61 +471,32 @@ function getCurrentMetricField() {
 }
 
 function applyFilters() {
-  const group =
-    document.getElementById("activity-group-filter").value;
+  const group = document.getElementById("activity-group-filter").value;
+  const type = document.getElementById("activity-type-filter").value;
+  const assistance = document.getElementById("assistance-type-filter").value;
+  const metricField = getCurrentMetricField();
 
-  const type =
-    document.getElementById("activity-type-filter").value;
+  const dateFromValue = document.getElementById("date-from-filter").value;
+  const dateToValue = document.getElementById("date-to-filter").value;
 
-  const assistance =
-    document.getElementById("assistance-type-filter").value;
-
-  const metricField =
-    getCurrentMetricField();
-
-  const dateFromValue =
-    document.getElementById("date-from-filter").value;
-
-  const dateToValue =
-    document.getElementById("date-to-filter").value;
-
-  const dateFrom =
-    dateFromValue ? new Date(dateFromValue + "T00:00:00") : null;
-
-  const dateTo =
-    dateToValue ? new Date(dateToValue + "T23:59:59") : null;
+  const dateFrom = dateFromValue ? new Date(dateFromValue + "T00:00:00") : null;
+  const dateTo = dateToValue ? new Date(dateToValue + "T23:59:59") : null;
 
   filteredActivities = activities.filter(item => {
-    const okGroup =
-      !group || item.activity_group === group;
-
-    const okType =
-      !type || item.activity_type === type;
-
-    const okAssistance =
-      !assistance || item.assistance_type === assistance;
+    const okGroup = !group || item.activity_group === group;
+    const okType = !type || item.activity_type === type;
+    const okAssistance = !assistance || item.assistance_type === assistance;
 
     let okDate = true;
 
     if (item.activity_date) {
-      const activityDate =
-        new Date(item.activity_date + "T12:00:00");
+      const activityDate = new Date(item.activity_date + "T12:00:00");
 
-      if (dateFrom && activityDate < dateFrom) {
-        okDate = false;
-      }
-
-      if (dateTo && activityDate > dateTo) {
-        okDate = false;
-      }
+      if (dateFrom && activityDate < dateFrom) okDate = false;
+      if (dateTo && activityDate > dateTo) okDate = false;
     }
 
-    return (
-      okGroup &&
-      okType &&
-      okAssistance &&
-      okDate
-    );
+    return okGroup && okType && okAssistance && okDate;
   });
 
   renderMap(filteredActivities, metricField);
@@ -491,48 +584,68 @@ function renderMap(records, metricField) {
 }
 
 function updateSummary(records, metricField) {
-  const totalEvents =
-    records.length;
+  const totalEvents = records.length;
 
-  const totalPeople =
-    records.reduce((sum, item) =>
-      sum + safeNumber(item.people_total), 0);
+  const totalPeople = records.reduce((sum, item) =>
+    sum + safeNumber(item.people_total), 0);
 
-  const totalKits =
-    records.reduce((sum, item) =>
-      sum + safeNumber(item.kits_total), 0);
+  const totalKits = records.reduce((sum, item) =>
+    sum + safeNumber(item.kits_total), 0);
 
-  const totalChildren =
-    records.reduce((sum, item) =>
-      sum + safeNumber(item.children_total), 0);
+  const totalChildren = records.reduce((sum, item) =>
+    sum + safeNumber(item.children_total), 0);
 
-  const totalAdults =
-    records.reduce((sum, item) =>
-      sum + safeNumber(item.adults_total), 0);
+  const totalAdults = records.reduce((sum, item) =>
+    sum + safeNumber(item.adults_total), 0);
 
-  const totalHouseholds =
-    records.reduce((sum, item) =>
-      sum + safeNumber(item.households_total), 0);
+  const totalHouseholds = records.reduce((sum, item) =>
+    sum + safeNumber(item.households_total), 0);
 
-  const totalConsultations =
-    records.reduce((sum, item) =>
-      sum + safeNumber(item.consultations_total), 0);
+  const totalConsultations = records.reduce((sum, item) =>
+    sum + safeNumber(item.consultations_total), 0);
 
-  const totalMetric =
-    records.reduce((sum, item) =>
-      sum + getMetricValue(item, metricField), 0);
+  const totalMetric = records.reduce((sum, item) =>
+    sum + getMetricValue(item, metricField), 0);
 
   document.getElementById("summary-box").innerHTML = `
-    <b>${getText("summary.events", "Events")}:</b> ${totalEvents}<br>
-    <b>${getText("summary.people", "People")}:</b> ${totalPeople}<br>
-    <b>${getText("summary.kits", "Kits")}:</b> ${totalKits}<br>
-    <b>${getText("summary.children", "Children")}:</b> ${totalChildren}<br>
-    <b>${getText("summary.adults", "Adults")}:</b> ${totalAdults}<br>
-    <b>${getText("summary.households", "Households")}:</b> ${totalHouseholds}<br>
-    <b>${getText("summary.consultations", "Consultations")}:</b> ${totalConsultations}<br>
-    <hr>
-    <b>${getText("summary.currentMetric", "Current metric")}:</b> ${totalMetric}
-    <div class="status-line">${getText("summary.visibleRecords", "Visible records")}: ${records.length}</div>
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">${getText("summary.events", "Events")}</div>
+        <div class="stat-value">${totalEvents}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">${getText("summary.people", "People")}</div>
+        <div class="stat-value">${totalPeople}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">${getText("summary.kits", "Kits")}</div>
+        <div class="stat-value">${totalKits}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">${getText("summary.children", "Children")}</div>
+        <div class="stat-value">${totalChildren}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">${getText("summary.adults", "Adults")}</div>
+        <div class="stat-value">${totalAdults}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">HH</div>
+        <div class="stat-value">${totalHouseholds}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Consult.</div>
+        <div class="stat-value">${totalConsultations}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">${getText("summary.currentMetric", "Metric")}</div>
+        <div class="stat-value">${totalMetric}</div>
+      </div>
+      <div class="stat-card wide">
+        <div class="stat-label">${getText("summary.visibleRecords", "Visible records")}</div>
+        <div class="stat-value">${records.length}</div>
+      </div>
+    </div>
   `;
 }
 
@@ -598,6 +711,16 @@ function updateActivityTypeOptions(preferredValue = "") {
   }
 }
 
+function updateLanguageButtons() {
+  const ukButton = document.getElementById("lang-uk");
+  const enButton = document.getElementById("lang-en");
+
+  if (!ukButton || !enButton) return;
+
+  ukButton.classList.toggle("active-lang", lang === "uk");
+  enButton.classList.toggle("active-lang", lang === "en");
+}
+
 function translateStaticUI() {
   document.documentElement.lang = lang;
 
@@ -636,6 +759,8 @@ function translateStaticUI() {
 
   document.getElementById("export-png-btn").title =
     getText("buttons.exportPng", "Export PNG");
+
+  updateLanguageButtons();
 }
 
 async function loadI18n() {
@@ -646,6 +771,23 @@ async function loadI18n() {
 async function refreshLiveData() {
   activities = await loadLiveActivities();
   filteredActivities = activities;
+  applyFilters();
+}
+
+async function switchLanguage(newLang) {
+  if (lang === newLang) {
+    updateLanguageButtons();
+    return;
+  }
+
+  lang = newLang;
+  localStorage.setItem("lang", lang);
+
+  await loadI18n();
+
+  translateStaticUI();
+  populateControls();
+  updateActivityTypeOptions();
   applyFilters();
 }
 
@@ -677,8 +819,8 @@ control.onAdd = function() {
 
   div.innerHTML = `
     <div class="lang-row">
-      <button id="lang-uk">UA</button>
-      <button id="lang-en">EN</button>
+      <button id="lang-uk" type="button" onclick="switchLanguage('uk')">UA</button>
+      <button id="lang-en" type="button" onclick="switchLanguage('en')">EN</button>
     </div>
 
     <div id="control-title" class="control-title">
@@ -711,11 +853,11 @@ control.onAdd = function() {
       <option value="event_count">Події</option>
     </select>
 
-    <button id="apply-filters">Застосувати фільтри</button>
-    <button id="reset-filters">Скинути фільтри</button>
-    <button id="refresh-data">Оновити дані</button>
+    <button id="apply-filters" type="button" class="primary-btn">Застосувати фільтри</button>
+    <button id="reset-filters" type="button" class="secondary-btn">Скинути фільтри</button>
+    <button id="refresh-data" type="button" class="secondary-btn">Оновити дані</button>
 
-    <div id="summary-box" class="summary-box"></div>
+    <div id="summary-box"></div>
   `;
 
   L.DomEvent.disableClickPropagation(div);
@@ -732,8 +874,8 @@ mapActionsControl.onAdd = function() {
   const div = L.DomUtil.create("div", "map-actions-control");
 
   div.innerHTML = `
-    <button id="toggle-filters-btn" class="map-action-btn" title="Show / hide filters">☰</button>
-    <button id="export-png-btn" class="map-action-btn" title="Export PNG">📷</button>
+    <button id="toggle-filters-btn" type="button" class="map-action-btn" title="Show / hide filters">☰</button>
+    <button id="export-png-btn" type="button" class="map-action-btn" title="Export PNG">📷</button>
   `;
 
   L.DomEvent.disableClickPropagation(div);
@@ -813,25 +955,7 @@ setTimeout(() => {
     applyFilters();
   });
 
-  async function switchLanguage(newLang) {
-    lang = newLang;
-    localStorage.setItem("lang", lang);
-
-    await loadI18n();
-
-    translateStaticUI();
-    populateControls();
-    updateActivityTypeOptions();
-    applyFilters();
-  }
-
-  document.getElementById("lang-uk").addEventListener("click", async () => {
-    await switchLanguage("uk");
-  });
-
-  document.getElementById("lang-en").addEventListener("click", async () => {
-    await switchLanguage("en");
-  });
+  updateLanguageButtons();
 }, 0);
 
 init().catch(error => {
