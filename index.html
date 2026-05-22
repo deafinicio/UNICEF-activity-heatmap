@@ -614,27 +614,35 @@ control.onAdd = function() {
       UNICEF Activity Heatmap
     </div>
 
-    <label id="label-date-from"></label>
-    <input type="date" id="date-from-filter">
+<label id="label-date-from">Період від</label>
+<input type="date" id="date-from-filter">
 
-    <label id="label-date-to"></label>
-    <input type="date" id="date-to-filter">
+<label id="label-date-to">Період до</label>
+<input type="date" id="date-to-filter">
 
-    <label id="label-activity-group"></label>
-    <select id="activity-group-filter"></select>
+<label id="label-activity-group">Напрямок активності</label>
+<select id="activity-group-filter">
+  <option value="">Усі</option>
+</select>
 
-    <label id="label-activity-type"></label>
-    <select id="activity-type-filter"></select>
+<label id="label-activity-type">Тип активності</label>
+<select id="activity-type-filter">
+  <option value="">Усі</option>
+</select>
 
-    <label id="label-assistance-type"></label>
-    <select id="assistance-type-filter"></select>
+<label id="label-assistance-type">Тип допомоги</label>
+<select id="assistance-type-filter">
+  <option value="">Усі</option>
+</select>
 
-    <label id="label-metric"></label>
-    <select id="metric-filter"></select>
+<label id="label-metric">Показник</label>
+<select id="metric-filter">
+  <option value="event_count">Події</option>
+</select>
 
-    <button id="apply-filters"></button>
-    <button id="reset-filters"></button>
-    <button id="refresh-data"></button>
+<button id="apply-filters">Застосувати фільтри</button>
+<button id="reset-filters">Скинути фільтри</button>
+<button id="refresh-data">Оновити дані</button>
 
     <div id="summary-box" class="summary-box"></div>
   `;
