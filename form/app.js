@@ -380,6 +380,27 @@ async function init() {
 
  let isSubmitting = false;
 
+function showSuccessModal() {
+  document.getElementById("success-modal-title").textContent =
+    lang === "uk" ? "Дані успішно надіслані" : "Data submitted successfully";
+
+  document.getElementById("success-modal-text").textContent =
+    lang === "uk" ? "Запис додано до таблиці." : "The record has been added to the table.";
+
+  document.getElementById("success-modal").classList.remove("hidden");
+}
+
+function resetFormAfterSuccess() {
+  document.getElementById("activity-form").reset();
+
+  populateActivityGroups();
+  renderCommonFields();
+  renderGroupFields();
+  renderDemographics();
+  updatePreview();
+  setStatus("");
+}
+
 document.getElementById("activity-form").addEventListener("submit", async event => {
   event.preventDefault();
 
@@ -396,9 +417,8 @@ document.getElementById("activity-form").addEventListener("submit", async event 
   const payload = collectPayload();
 
   try {
-    const result = await submitPayload(payload);
-    setStatus(result.localOnly ? tr("success") : tr("sent"), "success");
-    updatePreview();
+    await submitPayload(payload);
+    showSuccessModal();
   } catch (error) {
     console.error(error);
     setStatus(tr("error"), "error");
@@ -407,6 +427,11 @@ document.getElementById("activity-form").addEventListener("submit", async event 
     submitButton.disabled = false;
     submitButton.textContent = tr("submit");
   }
+});
+
+document.getElementById("success-modal-ok").addEventListener("click", () => {
+  document.getElementById("success-modal").classList.add("hidden");
+  resetFormAfterSuccess();
 });
 
   document.getElementById("lang-uk").addEventListener("click", () => {
