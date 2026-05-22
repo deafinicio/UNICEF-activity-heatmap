@@ -473,9 +473,36 @@ L.control.layers(baseLayers, overlays, { collapsed: false, position: "bottomleft
 map.addLayer(clusterLayer);
 map.addLayer(heatProxy);
 
+heatProxy.on("add", function() {
+  if (heatLayer && !map.hasLayer(heatLayer)) {
+    heatLayer.addTo(map);
+  }
+});
+
+heatProxy.on("remove", function() {
+  if (heatLayer && map.hasLayer(heatLayer)) {
+    map.removeLayer(heatLayer);
+  }
+});
+
 function safeNumber(value) {
-  const n = Number(value);
+  if (value === null || value === undefined || value === "") return 0;
+
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : 0;
+  }
+
+  const cleaned = String(value)
+    .trim()
+    .replace(/\s+/g, "")
+    .replace(/,/g, ".");
+
+  const n = Number(cleaned);
   return Number.isFinite(n) ? n : 0;
+}
+
+function cleanString(value) {
+  return String(value || "").trim();
 }
 
 function normalizeText(value) {
@@ -483,14 +510,56 @@ function normalizeText(value) {
     .trim()
     .toLowerCase()
     .replace(/[`ʼ']/g, "’")
-    .replace(/\\s+/g, " ");
+    .replace(/\s+/g, " ");
+}
+
+function normalizeLookupKey(value) {
+  return normalizeText(value)
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function normalizeActivityGroupValue(value) {
+  const key = normalizeLookupKey(value);
+
+  const aliases = {
+    "distributions": "distributions",
+    "distribution": "distributions",
+    "дистрибуції": "distributions",
+    "дистрибуція": "distributions",
+
+    "emergency team": "emergency_team",
+    "emergency_team": "emergency_team",
+
+    "mobile medical teams": "mobile_medical_teams",
+    "mobile medical team": "mobile_medical_teams",
+    "mobile_medical_teams": "mobile_medical_teams",
+    "мобільні медичні команди": "mobile_medical_teams",
+    "мобільна медична команда": "mobile_medical_teams",
+
+    "cash assistance": "cash_assistance",
+    "cash_assistance": "cash_assistance",
+    "грошова допомога": "cash_assistance",
+
+    "training sessions": "training_sessions",
+    "training session": "training_sessions",
+    "training_sessions": "training_sessions",
+    "навчальні сесії": "training_sessions",
+    "навчальна сесія": "training_sessions",
+
+    "repair": "repair",
+    "ремонт": "repair"
+  };
+
+  return aliases[key] || cleanString(value);
 }
 
 function normalizeDateValue(value) {
   if (!value) return "";
 
   if (typeof value === "string") {
-    if (/^\\d{4}-\\d{2}-\\d{2}/.test(value)) {
+    if (/^\d{4}-\d{2}-\d{2}/.test(value)) {
       return value.slice(0, 10);
     }
 
@@ -555,15 +624,15 @@ async function loadLiveActivities() {
 function normalizeActivityRow(row) {
   return {
     created_at: row.created_at || "",
-    activity_group: row.activity_group || "",
-    activity_type: row.activity_type || "",
-    assistance_type: row.assistance_type || "",
+    activity_group: normalizeActivityGroupValue(row.activity_group),
+    activity_type: cleanString(row.activity_type),
+    assistance_type: cleanString(row.assistance_type),
     activity_date: normalizeDateValue(row.activity_date),
-    raion: row.raion || "",
-    hromada: row.hromada || "",
-    settlement: row.settlement || "",
-    location_raw: row.location_raw || "",
-    comment: row.comment || "",
+    raion: cleanString(row.raion),
+    hromada: cleanString(row.hromada),
+    settlement: cleanString(row.settlement),
+    location_raw: cleanString(row.location_raw),
+    comment: cleanString(row.comment),
     event_count: safeNumber(row.event_count) || 1,
     people_total: safeNumber(row.people_total),
     children_total: safeNumber(row.children_total),
@@ -670,6 +739,10 @@ function renderMap(records, metricField) {
 
   if (heatLayer) {
     heatLayer.setLatLngs([]);
+
+    if (!map.hasLayer(heatProxy) && map.hasLayer(heatLayer)) {
+      map.removeLayer(heatLayer);
+    }
   }
 
   const features = records.map(activityToFeature).filter(Boolean);
@@ -862,9 +935,12 @@ function updateActivityTypeOptions(preferredValue = "") {
   typeSelect.innerHTML = `<option value="">${getText("filters.all", "All")}</option>`;
 
   const group = activityConfig.activity_groups.find(g => g.id === groupId);
-  if (!group) return;
 
-  group.activity_types.forEach(type => {
+  const types = group
+    ? group.activity_types
+    : activityConfig.activity_groups.flatMap(g => g.activity_types || []);
+
+  [...new Set(types)].forEach(type => {
     typeSelect.innerHTML += `<option value="${type}">${type}</option>`;
   });
 
