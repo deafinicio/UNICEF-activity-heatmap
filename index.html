@@ -75,6 +75,19 @@
     font-size: 12px;
     color: #555;
   }
+  .toggle-filters-btn {
+  background: #fff;
+  border: 1px solid #999;
+  border-radius: 6px;
+  padding: 8px 10px;
+  box-shadow: 0 1px 6px rgba(0,0,0,.25);
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.control-box.hidden-panel {
+  display: none;
+}
 </style>
 </head>
 
@@ -660,7 +673,24 @@ setTimeout(() => {
     updateActivityTypeOptions();
     applyFilters();
   });
+const toggleFiltersControl = L.control({ position: "topright" });
 
+toggleFiltersControl.onAdd = function() {
+  const div = L.DomUtil.create("div");
+
+  div.innerHTML = `
+    <button id="toggle-filters-btn" class="toggle-filters-btn" title="Show / hide filters">
+      ⚙️
+    </button>
+  `;
+
+  L.DomEvent.disableClickPropagation(div);
+  L.DomEvent.disableScrollPropagation(div);
+
+  return div;
+};
+
+toggleFiltersControl.addTo(map);
   document.getElementById("activity-type-filter").addEventListener("change", applyFilters);
   document.getElementById("assistance-type-filter").addEventListener("change", applyFilters);
   document.getElementById("metric-filter").addEventListener("change", applyFilters);
@@ -668,7 +698,9 @@ setTimeout(() => {
   document.getElementById("date-to-filter").addEventListener("change", applyFilters);
 
   document.getElementById("apply-filters").addEventListener("click", applyFilters);
-
+document.getElementById("toggle-filters-btn").addEventListener("click", () => {
+  document.querySelector(".control-box").classList.toggle("hidden-panel");
+});
   document.getElementById("refresh-data").addEventListener("click", async () => {
     await refreshLiveData();
   });
