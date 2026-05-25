@@ -720,7 +720,38 @@ function getAllMetrics() {
     ? metricsConfig.metrics
     : [];
 
-  return baseMetrics.concat(EXTRA_METRICS);
+  const excludedFields = new Set([
+    "female_total",
+    "male_total",
+    "age_18_plus_total"
+  ]);
+
+  const seenFields = new Set();
+  const seenLabels = new Set();
+  const result = [];
+
+  baseMetrics.concat(EXTRA_METRICS).forEach(metric => {
+    if (!metric || !metric.field || excludedFields.has(metric.field)) {
+      return;
+    }
+
+    const label =
+      metric.label && typeof metric.label === "object"
+        ? (metric.label.uk || metric.label.en || metric.id)
+        : getMetricLabel(metric.id);
+
+    const normalizedLabel = normalizeValueForCompare(label);
+
+    if (seenFields.has(metric.field) || seenLabels.has(normalizedLabel)) {
+      return;
+    }
+
+    seenFields.add(metric.field);
+    seenLabels.add(normalizedLabel);
+    result.push(metric);
+  });
+
+  return result;
 }
 
 function getMetricConfigById(metricId) {
@@ -1341,6 +1372,34 @@ function populateControls() {
       : metricsConfig.default_metric;
 }
 
+
+function getDynamicActivityTypes(groupId) {
+  const types = new Set();
+
+  const matchingConfigGroups = activityConfig.activity_groups.filter(group => {
+    if (!groupId) return true;
+    return normalizeActivityGroup(group.id) === normalizeActivityGroup(groupId);
+  });
+
+  matchingConfigGroups.forEach(group => {
+    (group.activity_types || []).forEach(type => {
+      if (type) types.add(type);
+    });
+  });
+
+  activities.forEach(item => {
+    const itemGroup = normalizeActivityGroup(item.activity_group);
+
+    if (!groupId || itemGroup === normalizeActivityGroup(groupId)) {
+      if (item.activity_type) {
+        types.add(item.activity_type);
+      }
+    }
+  });
+
+  return [...types].sort((a, b) => a.localeCompare(b, "en"));
+}
+
 function updateActivityTypeOptions(preferredValue = "") {
   const groupId = document.getElementById("activity-group-filter").value;
   const typeSelect = document.getElementById("activity-type-filter");
@@ -1349,13 +1408,9 @@ function updateActivityTypeOptions(preferredValue = "") {
 
   typeSelect.innerHTML = `<option value="">${getText("filters.all", "All")}</option>`;
 
-  const group = activityConfig.activity_groups.find(g => g.id === groupId);
+  const types = getDynamicActivityTypes(groupId);
 
-  const types = group
-    ? group.activity_types
-    : activityConfig.activity_groups.flatMap(g => g.activity_types || []);
-
-  [...new Set(types)].forEach(type => {
+  types.forEach(type => {
     typeSelect.innerHTML += `<option value="${type}">${type}</option>`;
   });
 
@@ -1363,7 +1418,6 @@ function updateActivityTypeOptions(preferredValue = "") {
     typeSelect.value = currentValue;
   }
 }
-
 function updateLanguageButtons() {
   const ukButton = document.getElementById("lang-uk");
   const enButton = document.getElementById("lang-en");
