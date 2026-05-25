@@ -1141,6 +1141,47 @@ function applyFilters() {
   updateSummary(filteredActivities, selectedMetricField);
 }
 
+function getMarkerColor(value, maxValue) {
+  if (maxValue <= 0) return "#94a3b8";
+
+  const ratio = value / maxValue;
+
+  if (ratio >= 0.75) return "#fb923c";
+  if (ratio >= 0.40) return "#facc15";
+  if (ratio >= 0.15) return "#84cc16";
+
+  return "#86efac";
+}
+
+function createValueMarker(latlng, value, maxValue, record) {
+  const color = getMarkerColor(value, maxValue);
+  const label = Number.isInteger(value) ? value : Math.round(value);
+
+  return L.marker(latlng, {
+    metricValue: value,
+    sourceRecord: record,
+    icon: L.divIcon({
+      className: "value-marker",
+      html: `<div style="
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        background: ${color};
+        color: #111827;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 800;
+        font-size: 12px;
+        border: 2px solid rgba(255,255,255,.85);
+        box-shadow: 0 3px 10px rgba(15,23,42,.25);
+      ">${label}</div>`,
+      iconSize: [34, 34],
+      iconAnchor: [17, 17]
+    })
+  });
+}
+
 function renderMap(records, metricField) {
   clusterLayer.clearLayers();
 
@@ -1151,53 +1192,74 @@ function renderMap(records, metricField) {
     }
   }
 
+  const validRecords = records.filter(record => record._coordinates);
+
+  const values = validRecords.map(record => getMetricValue(record, metricField));
+  let maxValue = Math.max(...values, 1);
+
   const markersArray = [];
-  const heatData = [];
+  const heatGroups = new Map();
 
-  // 1. Спочатку визначаємо максимальне значення для правильного градієнту теплової мапи
-  let maxValue = 0;
-  records.forEach(p => {
-    if (!p._coordinates) return;
-    const val = getMetricValue(p, metricField);
-    if (val > maxValue) maxValue = val;
-  });
-  if (maxValue <= 0) maxValue = 1;
+  validRecords.forEach(record => {
+    const coords = record._coordinates;
+    const metricValue = getMetricValue(record, metricField);
 
-  // 2. Генерація об'єктів карти
-  records.forEach(p => {
-    if (!p._coordinates) return;
+    if (metricValue <= 0) {
+      return;
+    }
 
-    // Переводимо з GeoJSON [lng, lat] у формат Leaflet [lat, lng]
-    const latlng = [p._coordinates[1], p._coordinates[0]];
-    const metricValue = getMetricValue(p, metricField);
+    const latlng = [coords[1], coords[0]];
+    const marker = createValueMarker(latlng, metricValue, maxValue, record);
 
-    // Конструюємо безпечний HTML попапу
+    const metricLabel = escapeHTML(getMetricLabel(getSelectedMetricId ? getSelectedMetricId() : ""));
+
     const html = `
-      <b>${escapeHTML(p.settlement || "")}</b><br>
-      ${escapeHTML(p.hromada || "")}, ${escapeHTML(p.raion || "")}<br>
-      ${getText("popup.date", "Date")}: ${escapeHTML(p.activity_date) || "—"}<br>
-      ${getText("popup.activityGroup", "Activity group")}: ${escapeHTML(getActivityGroupLabel(p.activity_group))}<br>
-      ${getText("popup.activityType", "Activity type")}: ${escapeHTML(p.activity_type) || "—"}<br>
-      ${getText("popup.assistanceType", "Assistance type")}: ${escapeHTML(p.assistance_type) || "—"}<br>
-      ${getText("popup.people", "People")}: ${safeNumber(p.people_total)}<br>
-      ${getText("popup.kits", "Kits")}: ${safeNumber(p.kits_total)}<br>
-      <b>${getText("filters.metric", "Metric")}:</b> ${metricValue}
-      ${p.comment ? "<br>" + getText("popup.comment", "Comment") + ": " + escapeHTML(p.comment) : ""}
+      <b>${escapeHTML(record.settlement || "")}</b><br>
+      ${escapeHTML(record.hromada || "")}, ${escapeHTML(record.raion || "")}<br>
+      ${escapeHTML(getText("popup.date", "Date"))}: ${escapeHTML(record.activity_date || "—")}<br>
+      ${escapeHTML(getText("popup.activityGroup", "Activity group"))}: ${escapeHTML(getActivityGroupLabel(record.activity_group))}<br>
+      ${escapeHTML(getText("popup.activityType", "Activity type"))}: ${escapeHTML(record.activity_type || "—")}<br>
+      ${escapeHTML(getText("popup.assistanceType", "Assistance type"))}: ${escapeHTML(record.assistance_type || "—")}<br>
+      ${escapeHTML(getText("popup.people", "People"))}: ${safeNumber(record.people_total)}<br>
+      ${escapeHTML(getText("popup.kits", "Kits"))}: ${safeNumber(record.kits_total)}<br>
+      <b>${metricLabel}:</b> ${metricValue}
+      ${record.comment ? "<br>" + escapeHTML(getText("popup.comment", "Comment")) + ": " + escapeHTML(record.comment) : ""}
     `;
 
-    const marker = L.marker(latlng);
     marker.bindPopup(html);
     markersArray.push(marker);
 
-    // Розраховуємо інтенсивність точки теплової мапи
-    const intensity = Math.max(0.15, Math.min(1, Math.sqrt(metricValue / maxValue)));
-    heatData.push([latlng[0], latlng[1], intensity]);
+    const heatKey = coords[1] + "||" + coords[0];
+
+    if (!heatGroups.has(heatKey)) {
+      heatGroups.set(heatKey, {
+        lat: coords[1],
+        lon: coords[0],
+        value: 0
+      });
+    }
+
+    heatGroups.get(heatKey).value += metricValue;
   });
 
-  // 3. Пакетне додавання маркерів у кластер (миттєвий рендеринг)
   clusterLayer.addLayers(markersArray);
 
-  // 4. Ініціалізація або оновлення шару теплової мапи
+  const heatPoints = [...heatGroups.values()];
+  let maxHeatValue = 0;
+
+  heatPoints.forEach(point => {
+    maxHeatValue = Math.max(maxHeatValue, safeNumber(point.value));
+  });
+
+  if (maxHeatValue <= 0) {
+    maxHeatValue = 1;
+  }
+
+  const heatData = heatPoints.map(point => {
+    const intensity = Math.max(0.15, Math.min(1, Math.sqrt(point.value / maxHeatValue)));
+    return [point.lat, point.lon, intensity];
+  });
+
   if (!heatLayer) {
     heatLayer = L.heatLayer(heatData, {
       radius: 38,
