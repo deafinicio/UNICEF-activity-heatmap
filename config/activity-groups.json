@@ -22,7 +22,17 @@
     {
       "id": "mobile_medical_teams",
       "label": "Mobile medical teams",
-      "activity_types": []
+      "activity_types": [
+        "Ultrasound Diagnostics Specialist",
+        "dermatologist",
+        "neurologist",
+        "ophthalmologist",
+        "orthopedist",
+        "otolaryngologist",
+        "primary care",
+        "psychologist",
+        "surgeon"
+      ]
     },
     {
       "id": "cash_assistance",
@@ -30,14 +40,14 @@
       "activity_types": []
     },
     {
-  "id": "training_sessions",
-  "label": "Training sessions",
-  "activity_types": [
-    "Behavior during shelling",
-    "Mine safety awareness",
-    "First aid basics"
-  ]
-},
+      "id": "training_sessions",
+      "label": "Training sessions",
+      "activity_types": [
+        "Behavior during shelling",
+        "Mine safety awareness",
+        "First aid basics"
+      ]
+    },
     {
       "id": "repair",
       "label": "Repair",
