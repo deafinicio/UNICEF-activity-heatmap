@@ -448,13 +448,27 @@ let locationIndex = {
   hromadasByRaion: {},
   settlementsByRaionHromada: {}
 };
-
+// Функція безпеки для захисту від шкідливого коду в базі даних
+function escapeHTML(str) {
+  if (str === null || str === undefined) return "";
+  return String(str).replace(/[&<>'"]/g, function (match) {
+    const escapeMap = {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      "'": '&#39;',
+      '"': '&quot;'
+    };
+    return escapeMap[match];
+  });
+}
 function buildLocationIndex() {
-  coordsIndex.clear();
-
   const raions = new Set();
   const hromadasByRaion = {};
   const settlementsByRaionHromada = {};
+
+  // Очищаємо індекс перед заповненням
+  coordsIndex.clear();
 
   (settlementsGeo.features || []).forEach(feature => {
     const p = feature.properties || {};
@@ -464,13 +478,6 @@ function buildLocationIndex() {
 
     if (!raion || !hromada || !settlement) return;
 
-    const lookupKey =
-      normalizeText(raion) + "||" +
-      normalizeText(hromada) + "||" +
-      normalizeText(settlement);
-
-    coordsIndex.set(lookupKey, feature.geometry.coordinates);
-
     raions.add(raion);
 
     if (!hromadasByRaion[raion]) hromadasByRaion[raion] = new Set();
@@ -479,6 +486,10 @@ function buildLocationIndex() {
     const key = raion + "||" + hromada;
     if (!settlementsByRaionHromada[key]) settlementsByRaionHromada[key] = new Set();
     settlementsByRaionHromada[key].add(settlement);
+
+    // Хешуємо координати населеного пункту
+    const lookupKey = normalizeText(raion) + "||" + normalizeText(hromada) + "||" + normalizeText(settlement);
+    coordsIndex.set(lookupKey, feature.geometry.coordinates);
   });
 
   locationIndex.raions = [...raions].sort((a, b) => a.localeCompare(b, "uk"));
@@ -495,7 +506,6 @@ function buildLocationIndex() {
       [...settlementsByRaionHromada[key]].sort((a, b) => a.localeCompare(b, "uk"));
   });
 }
-
 function fillSelectOptions(select, values, defaultText) {
   const previous = select.value;
   select.innerHTML = `<option value="">${defaultText}</option>`;
@@ -980,12 +990,10 @@ function normalizeActivityRow(row) {
   const normRaion = normalizeText(row.raion);
   const normHromada = normalizeText(row.hromada);
   const normSettlement = normalizeText(row.settlement);
-  const normGroup = normalizeActivityGroupValue(row.activity_group);
-  const normType = normalizeValueForCompare(row.activity_type);
-  const normAssistance = normalizeValueForCompare(row.assistance_type);
-
-  const coordinates =
-    coordsIndex.get(normRaion + "||" + normHromada + "||" + normSettlement) || null;
+  
+  // Дістаємо координати за 1 крок
+  const lookupKey = normRaion + "||" + normHromada + "||" + normSettlement;
+  const coordinates = coordsIndex.get(lookupKey) || null;
 
   return {
     created_at: row.created_at || "",
@@ -1023,10 +1031,11 @@ function normalizeActivityRow(row) {
     age_10_14_total: safeNumber(row.age_10_14_total),
     age_15_17_total: safeNumber(row.age_15_17_total),
     age_18_plus_total: safeNumber(row.age_18_plus_total),
-
-    _normGroup: normGroup,
-    _normType: normType,
-    _normAssistance: normAssistance,
+    
+    // Системні поля для швидкої фільтрації
+    _normGroup: normalizeActivityGroup(row.activity_group),
+    _normType: normalizeValueForCompare(row.activity_type),
+    _normAssistance: normalizeValueForCompare(row.assistance_type),
     _normRaion: normRaion,
     _normHromada: normHromada,
     _normSettlement: normSettlement,
@@ -1093,21 +1102,13 @@ function getCurrentMetricField() {
 }
 
 function applyFilters() {
-  const selectedGroupRaw = document.getElementById("activity-group-filter").value;
-  const selectedTypeRaw = document.getElementById("activity-type-filter").value;
-  const selectedAssistanceRaw = document.getElementById("assistance-type-filter").value;
+  const selectedGroup = document.getElementById("activity-group-filter").value;
+  const selectedType = document.getElementById("activity-type-filter").value;
+  const selectedAssistance = document.getElementById("assistance-type-filter").value;
 
-  const selectedRaionRaw = document.getElementById("raion-filter").value;
-  const selectedHromadaRaw = document.getElementById("hromada-filter").value;
-  const selectedSettlementRaw = document.getElementById("settlement-filter").value;
-
-  const selectedGroup = selectedGroupRaw ? normalizeActivityGroupValue(selectedGroupRaw) : "";
-  const selectedType = selectedTypeRaw ? normalizeValueForCompare(selectedTypeRaw) : "";
-  const selectedAssistance = selectedAssistanceRaw ? normalizeValueForCompare(selectedAssistanceRaw) : "";
-
-  const selectedRaion = selectedRaionRaw ? normalizeText(selectedRaionRaw) : "";
-  const selectedHromada = selectedHromadaRaw ? normalizeText(selectedHromadaRaw) : "";
-  const selectedSettlement = selectedSettlementRaw ? normalizeText(selectedSettlementRaw) : "";
+  const selectedRaion = document.getElementById("raion-filter").value;
+  const selectedHromada = document.getElementById("hromada-filter").value;
+  const selectedSettlement = document.getElementById("settlement-filter").value;
 
   const selectedMetricField = getCurrentMetricField();
 
@@ -1117,14 +1118,22 @@ function applyFilters() {
   const dateFrom = dateFromValue ? new Date(dateFromValue + "T00:00:00") : null;
   const dateTo = dateToValue ? new Date(dateToValue + "T23:59:59") : null;
 
-  filteredActivities = activities.filter(item => {
-    const okGroup = !selectedGroup || item._normGroup === selectedGroup;
-    const okType = !selectedType || item._normType === selectedType;
-    const okAssistance = !selectedAssistance || item._normAssistance === selectedAssistance;
+  // Одноразова нормалізація обраних фільтрів
+  const normSelGroup = normalizeActivityGroup(selectedGroup);
+  const normSelType = normalizeValueForCompare(selectedType);
+  const normSelAssistance = normalizeValueForCompare(selectedAssistance);
+  const normSelRaion = normalizeValueForCompare(selectedRaion);
+  const normSelHromada = normalizeValueForCompare(selectedHromada);
+  const normSelSettlement = normalizeValueForCompare(selectedSettlement);
 
-    const okRaion = !selectedRaion || item._normRaion === selectedRaion;
-    const okHromada = !selectedHromada || item._normHromada === selectedHromada;
-    const okSettlement = !selectedSettlement || item._normSettlement === selectedSettlement;
+  filteredActivities = activities.filter(item => {
+    const okGroup = !selectedGroup || item._normGroup === normSelGroup;
+    const okType = !selectedType || item._normType === normSelType;
+    const okAssistance = !selectedAssistance || item._normAssistance === normSelAssistance;
+
+    const okRaion = !selectedRaion || item._normRaion === normSelRaion;
+    const okHromada = !selectedHromada || item._normHromada === normSelHromada;
+    const okSettlement = !selectedSettlement || item._normSettlement === normSelSettlement;
 
     let okDate = true;
 
@@ -1141,87 +1150,67 @@ function applyFilters() {
   updateSummary(filteredActivities, selectedMetricField);
 }
 
+  renderMap(filteredActivities, selectedMetricField);
+  updateSummary(filteredActivities, selectedMetricField);
+}
+
 function renderMap(records, metricField) {
   clusterLayer.clearLayers();
 
   if (heatLayer) {
     heatLayer.setLatLngs([]);
+    if (!map.hasLayer(heatProxy) && map.hasLayer(heatLayer)) {
+      map.removeLayer(heatLayer);
+    }
   }
 
-  const values = records
-    .filter(record => record._coordinates)
-    .map(record => getMetricValue(record, metricField));
-
-  let maxValue = Math.max(...values, 1);
-
   const markersArray = [];
-  const heatGroups = new Map();
+  const heatData = [];
 
-  records.forEach(record => {
-    const coords = record._coordinates;
+  // 1. Спочатку визначаємо максимальне значення для правильного градієнту теплової мапи
+  let maxValue = 0;
+  records.forEach(p => {
+    if (!p._coordinates) return;
+    const val = getMetricValue(p, metricField);
+    if (val > maxValue) maxValue = val;
+  });
+  if (maxValue <= 0) maxValue = 1;
 
-    if (!coords) {
-      return;
-    }
+  // 2. Генерація об'єктів карти
+  records.forEach(p => {
+    if (!p._coordinates) return;
 
-    const value = getMetricValue(record, metricField);
+    // Переводимо з GeoJSON [lng, lat] у формат Leaflet [lat, lng]
+    const latlng = [p._coordinates[1], p._coordinates[0]];
+    const metricValue = getMetricValue(p, metricField);
 
-    if (value <= 0) {
-      return;
-    }
-
-    const latlng = [coords[1], coords[0]];
-    const marker = createValueMarker(latlng, value, maxValue, record);
-
-    const metricLabel = escapeHTML(getMetricLabel(getSelectedMetricId ? getSelectedMetricId() : ""));
-
+    // Конструюємо безпечний HTML попапу
     const html = `
-      <b>${escapeHTML(record.settlement || "")}</b><br>
-      ${escapeHTML(record.hromada || "")}, ${escapeHTML(record.raion || "")}<br>
-      ${escapeHTML(getText("popup.date", "Date"))}: ${escapeHTML(record.activity_date || "—")}<br>
-      ${escapeHTML(getText("popup.activityGroup", "Activity group"))}: ${escapeHTML(getActivityGroupLabel(record.activity_group))}<br>
-      ${escapeHTML(getText("popup.activityType", "Activity type"))}: ${escapeHTML(record.activity_type || "—")}<br>
-      ${escapeHTML(getText("popup.assistanceType", "Assistance type"))}: ${escapeHTML(record.assistance_type || "—")}<br>
-      ${escapeHTML(getText("popup.people", "People"))}: ${safeNumber(record.people_total)}<br>
-      ${escapeHTML(getText("popup.kits", "Kits"))}: ${safeNumber(record.kits_total)}<br>
-      <b>${metricLabel}:</b> ${value}
-      ${record.comment ? "<br>" + escapeHTML(getText("popup.comment", "Comment")) + ": " + escapeHTML(record.comment) : ""}
+      <b>${escapeHTML(p.settlement || "")}</b><br>
+      ${escapeHTML(p.hromada || "")}, ${escapeHTML(p.raion || "")}<br>
+      ${getText("popup.date", "Date")}: ${escapeHTML(p.activity_date) || "—"}<br>
+      ${getText("popup.activityGroup", "Activity group")}: ${escapeHTML(getActivityGroupLabel(p.activity_group))}<br>
+      ${getText("popup.activityType", "Activity type")}: ${escapeHTML(p.activity_type) || "—"}<br>
+      ${getText("popup.assistanceType", "Assistance type")}: ${escapeHTML(p.assistance_type) || "—"}<br>
+      ${getText("popup.people", "People")}: ${safeNumber(p.people_total)}<br>
+      ${getText("popup.kits", "Kits")}: ${safeNumber(p.kits_total)}<br>
+      <b>${getText("filters.metric", "Metric")}:</b> ${metricValue}
+      ${p.comment ? "<br>" + getText("popup.comment", "Comment") + ": " + escapeHTML(p.comment) : ""}
     `;
 
+    const marker = L.marker(latlng);
     marker.bindPopup(html);
     markersArray.push(marker);
 
-    const heatKey = coords[1] + "||" + coords[0];
-
-    if (!heatGroups.has(heatKey)) {
-      heatGroups.set(heatKey, {
-        lat: coords[1],
-        lon: coords[0],
-        value: 0
-      });
-    }
-
-    heatGroups.get(heatKey).value += value;
+    // Розраховуємо інтенсивність точки теплової мапи
+    const intensity = Math.max(0.15, Math.min(1, Math.sqrt(metricValue / maxValue)));
+    heatData.push([latlng[0], latlng[1], intensity]);
   });
 
+  // 3. Пакетне додавання маркерів у кластер (миттєвий рендеринг)
   clusterLayer.addLayers(markersArray);
 
-  const heatPoints = [...heatGroups.values()];
-  let maxHeatValue = 0;
-
-  heatPoints.forEach(point => {
-    maxHeatValue = Math.max(maxHeatValue, safeNumber(point.value));
-  });
-
-  if (maxHeatValue <= 0) {
-    maxHeatValue = 1;
-  }
-
-  const heatData = heatPoints.map(point => {
-    const intensity = Math.max(0.15, Math.min(1, Math.sqrt(point.value / maxHeatValue)));
-    return [point.lat, point.lon, intensity];
-  });
-
+  // 4. Ініціалізація або оновлення шару теплової мапи
   if (!heatLayer) {
     heatLayer = L.heatLayer(heatData, {
       radius: 38,
