@@ -1,6 +1,4 @@
-from pathlib import Path
-
-app_js = r'''const PATHS = {
+const PATHS = {
   schema: "../config/form-schema.json",
   locations: "locations.json"
 };
@@ -535,8 +533,3 @@ init().catch(error => {
   console.error(error);
   setStatus("Initialization error. Check console.", "error");
 });
-'''
-
-path = Path("/mnt/data/app.js")
-path.write_text(app_js, encoding="utf-8")
-print(path)
