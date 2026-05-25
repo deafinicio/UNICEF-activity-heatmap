@@ -25,7 +25,7 @@
       </div>
     </div>
 
-    <form id="activity-form">
+    <form id="activity-form" autocomplete="off">
       <div class="form-section">
         <label id="activity-group-label" for="activity_group">Activity group</label>
         <select id="activity_group" name="activity_group" required></select>
@@ -54,17 +54,13 @@
     </form>
   </section>
 
-  <section class="card preview-card">
-    <h2 id="preview-title">Submission preview</h2>
-    <pre id="payload-preview">{}</pre>
-  </section>
   <div id="success-modal" class="modal hidden">
-  <div class="modal-content">
-    <h2 id="success-modal-title">Дані успішно надіслані</h2>
-    <p id="success-modal-text">Запис додано до таблиці.</p>
-    <button type="button" id="success-modal-ok">OK</button>
+    <div class="modal-content">
+      <h2 id="success-modal-title">Дані успішно надіслані</h2>
+      <p id="success-modal-text">Запис додано до таблиці.</p>
+      <button type="button" id="success-modal-ok">OK</button>
+    </div>
   </div>
-</div>
 </main>
 
 <script src="app.js"></script>
