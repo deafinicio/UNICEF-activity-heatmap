@@ -865,6 +865,11 @@ function normalizeActivityGroupValue(value) {
   return aliases[key] || cleanString(value);
 }
 
+
+function normalizeActivityGroup(value) {
+  return normalizeActivityGroupValue(value);
+}
+
 function normalizeDateValue(value) {
   if (!value) return "";
 
@@ -975,7 +980,7 @@ function normalizeActivityRow(row) {
   const normRaion = normalizeText(row.raion);
   const normHromada = normalizeText(row.hromada);
   const normSettlement = normalizeText(row.settlement);
-  const normGroup = normalizeActivityGroup(row.activity_group);
+  const normGroup = normalizeActivityGroupValue(row.activity_group);
   const normType = normalizeValueForCompare(row.activity_type);
   const normAssistance = normalizeValueForCompare(row.assistance_type);
 
@@ -1096,7 +1101,7 @@ function applyFilters() {
   const selectedHromadaRaw = document.getElementById("hromada-filter").value;
   const selectedSettlementRaw = document.getElementById("settlement-filter").value;
 
-  const selectedGroup = selectedGroupRaw ? normalizeActivityGroup(selectedGroupRaw) : "";
+  const selectedGroup = selectedGroupRaw ? normalizeActivityGroupValue(selectedGroupRaw) : "";
   const selectedType = selectedTypeRaw ? normalizeValueForCompare(selectedTypeRaw) : "";
   const selectedAssistance = selectedAssistanceRaw ? normalizeValueForCompare(selectedAssistanceRaw) : "";
 
@@ -1344,7 +1349,7 @@ function getDynamicActivityTypes(groupId) {
 
   const matchingConfigGroups = activityConfig.activity_groups.filter(group => {
     if (!groupId) return true;
-    return normalizeActivityGroup(group.id) === normalizeActivityGroup(groupId);
+    return normalizeActivityGroupValue(group.id) === normalizeActivityGroupValue(groupId);
   });
 
   matchingConfigGroups.forEach(group => {
@@ -1354,9 +1359,9 @@ function getDynamicActivityTypes(groupId) {
   });
 
   activities.forEach(item => {
-    const itemGroup = normalizeActivityGroup(item.activity_group);
+    const itemGroup = normalizeActivityGroupValue(item.activity_group);
 
-    if (!groupId || itemGroup === normalizeActivityGroup(groupId)) {
+    if (!groupId || itemGroup === normalizeActivityGroupValue(groupId)) {
       if (item.activity_type) {
         types.add(item.activity_type);
       }
