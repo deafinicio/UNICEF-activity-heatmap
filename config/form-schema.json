@@ -120,16 +120,6 @@
             "uk": "Кількість виданих наборів",
             "en": "Kits distributed"
           }
-        },
-        {
-          "id": "people_total",
-          "type": "number",
-          "required": true,
-          "min": 0,
-          "label": {
-            "uk": "Кількість людей, які отримали допомогу",
-            "en": "People reached"
-          }
         }
       ]
     },
@@ -138,38 +128,7 @@
         "uk": "Emergency Team",
         "en": "Emergency Team"
       },
-      "fields": [
-        {
-          "id": "children_total",
-          "type": "number",
-          "required": false,
-          "min": 0,
-          "label": {
-            "uk": "Кількість дітей",
-            "en": "Children"
-          }
-        },
-        {
-          "id": "adults_total",
-          "type": "number",
-          "required": false,
-          "min": 0,
-          "label": {
-            "uk": "Кількість дорослих",
-            "en": "Adults"
-          }
-        },
-        {
-          "id": "people_total",
-          "type": "number",
-          "required": false,
-          "min": 0,
-          "label": {
-            "uk": "Загальна кількість людей",
-            "en": "Total people reached"
-          }
-        }
-      ]
+      "fields": []
     },
     "mobile_medical_teams": {
       "label": {
@@ -178,32 +137,23 @@
       },
       "fields": [
         {
-          "id": "children_total",
-          "type": "number",
-          "required": false,
-          "min": 0,
+          "id": "activity_type",
+          "type": "select",
+          "required": true,
+          "options": [
+            "Ultrasound Diagnostics Specialist",
+            "dermatologist",
+            "neurologist",
+            "ophthalmologist",
+            "orthopedist",
+            "otolaryngologist",
+            "primary care",
+            "psychologist",
+            "surgeon"
+          ],
           "label": {
-            "uk": "Кількість дітей",
-            "en": "Children"
-          }
-        },
-        {
-          "id": "consultations_total",
-          "type": "number",
-          "required": false,
-          "min": 0,
-          "label": {
-            "uk": "Кількість консультацій",
-            "en": "Consultations"
-          }
-        },
-        {
-          "id": "specialist",
-          "type": "text",
-          "required": false,
-          "label": {
-            "uk": "Спеціаліст",
-            "en": "Specialist"
+            "uk": "Лікар / спеціаліст",
+            "en": "Doctor / specialist"
           }
         }
       ]
@@ -222,16 +172,6 @@
           "label": {
             "uk": "Кількість домогосподарств",
             "en": "Households reached"
-          }
-        },
-        {
-          "id": "people_total",
-          "type": "number",
-          "required": false,
-          "min": 0,
-          "label": {
-            "uk": "Кількість людей",
-            "en": "People reached"
           }
         }
       ]
@@ -254,16 +194,6 @@
           "label": {
             "uk": "Тип тренінгу",
             "en": "Training type"
-          }
-        },
-        {
-          "id": "people_total",
-          "type": "number",
-          "required": true,
-          "min": 0,
-          "label": {
-            "uk": "Кількість учасників",
-            "en": "Participants"
           }
         }
       ]
@@ -301,16 +231,6 @@
           "label": {
             "uk": "Кількість домогосподарств",
             "en": "Households reached"
-          }
-        },
-        {
-          "id": "people_total",
-          "type": "number",
-          "required": false,
-          "min": 0,
-          "label": {
-            "uk": "Кількість людей",
-            "en": "People reached"
           }
         }
       ]
