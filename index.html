@@ -439,6 +439,7 @@ let activityConfig = null;
 let metricsConfig = null;
 
 let settlementsGeo = null;
+let coordsIndex = new Map();
 let activities = [];
 let filteredActivities = [];
 
@@ -449,6 +450,8 @@ let locationIndex = {
 };
 
 function buildLocationIndex() {
+  coordsIndex.clear();
+
   const raions = new Set();
   const hromadasByRaion = {};
   const settlementsByRaionHromada = {};
@@ -460,6 +463,13 @@ function buildLocationIndex() {
     const settlement = p.settlement || "";
 
     if (!raion || !hromada || !settlement) return;
+
+    const lookupKey =
+      normalizeText(raion) + "||" +
+      normalizeText(hromada) + "||" +
+      normalizeText(settlement);
+
+    coordsIndex.set(lookupKey, feature.geometry.coordinates);
 
     raions.add(raion);
 
@@ -776,6 +786,15 @@ heatProxy.on("remove", function() {
   }
 });
 
+function escapeHTML(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 function safeNumber(value) {
   if (value === null || value === undefined || value === "") return 0;
 
@@ -915,7 +934,27 @@ function getBilingualLabel(key, ukFallback, enFallback) {
     : getText(key, enFallback);
 }
 
-async function loadLiveActivities() {
+async function loadLiveActivities(forceRefresh = false) {
+  const CACHE_KEY = "unicef_activities_cache";
+  const CACHE_TIME_KEY = "unicef_activities_cache_time";
+  const CACHE_TTL = 5 * 60 * 1000;
+
+  if (!forceRefresh) {
+    const cachedData = sessionStorage.getItem(CACHE_KEY);
+    const cachedTime = sessionStorage.getItem(CACHE_TIME_KEY);
+
+    if (
+      cachedData &&
+      cachedTime &&
+      Date.now() - parseInt(cachedTime, 10) < CACHE_TTL
+    ) {
+      const rows = JSON.parse(cachedData);
+      return Array.isArray(rows)
+        ? rows.map(normalizeActivityRow)
+        : [];
+    }
+  }
+
   const response = await fetch(APPS_SCRIPT_DATA_URL + "?nocache=" + Date.now());
 
   if (!response.ok) {
@@ -924,35 +963,25 @@ async function loadLiveActivities() {
 
   const rows = await response.json();
 
+  sessionStorage.setItem(CACHE_KEY, JSON.stringify(rows));
+  sessionStorage.setItem(CACHE_TIME_KEY, Date.now().toString());
+
   return Array.isArray(rows)
     ? rows.map(normalizeActivityRow)
     : [];
 }
 
-
-function normalizeActivityGroup(value) {
-  const normalized = normalizeValueForCompare(value);
-
-  const aliases = {
-    "distributions": "distributions",
-    "distribution": "distributions",
-    "дистрибуції": "distributions",
-    "дистрибуция": "distributions",
-    "emergency team": "emergency_team",
-    "emergency_team": "emergency_team",
-    "mobile medical teams": "mobile_medical_teams",
-    "mobile_medical_teams": "mobile_medical_teams",
-    "cash assistance": "cash_assistance",
-    "cash_assistance": "cash_assistance",
-    "training sessions": "training_sessions",
-    "training_sessions": "training_sessions",
-    "repair": "repair"
-  };
-
-  return aliases[normalized] || value || "";
-}
-
 function normalizeActivityRow(row) {
+  const normRaion = normalizeText(row.raion);
+  const normHromada = normalizeText(row.hromada);
+  const normSettlement = normalizeText(row.settlement);
+  const normGroup = normalizeActivityGroup(row.activity_group);
+  const normType = normalizeValueForCompare(row.activity_type);
+  const normAssistance = normalizeValueForCompare(row.assistance_type);
+
+  const coordinates =
+    coordsIndex.get(normRaion + "||" + normHromada + "||" + normSettlement) || null;
+
   return {
     created_at: row.created_at || "",
     activity_group: normalizeActivityGroupValue(row.activity_group),
@@ -988,28 +1017,56 @@ function normalizeActivityRow(row) {
     age_5_9_total: safeNumber(row.age_5_9_total),
     age_10_14_total: safeNumber(row.age_10_14_total),
     age_15_17_total: safeNumber(row.age_15_17_total),
-    age_18_plus_total: safeNumber(row.age_18_plus_total)
+    age_18_plus_total: safeNumber(row.age_18_plus_total),
+
+    _normGroup: normGroup,
+    _normType: normType,
+    _normAssistance: normAssistance,
+    _normRaion: normRaion,
+    _normHromada: normHromada,
+    _normSettlement: normSettlement,
+    _coordinates: coordinates
   };
 }
 
+function getCoordinatesForRecord(record) {
+  if (record && record._coordinates) {
+    return record._coordinates;
+  }
+
+  const key = [
+    normalizeText(record.raion),
+    normalizeText(record.hromada),
+    normalizeText(record.settlement)
+  ].join("||");
+
+  return coordsIndex.get(key) || null;
+}
+
 function findSettlementPoint(record) {
-  const features = settlementsGeo.features || [];
+  const coordinates = getCoordinatesForRecord(record);
 
-  const raion = normalizeText(record.raion);
-  const hromada = normalizeText(record.hromada);
-  const settlement = normalizeText(record.settlement);
+  if (!coordinates) {
+    return null;
+  }
 
-  return features.find(f => {
-    const p = f.properties || {};
-    return normalizeText(p.raion) === raion &&
-      normalizeText(p.hromada) === hromada &&
-      normalizeText(p.settlement) === settlement;
-  });
+  return {
+    geometry: {
+      type: "Point",
+      coordinates
+    },
+    properties: {
+      raion: record.raion,
+      hromada: record.hromada,
+      settlement: record.settlement
+    }
+  };
 }
 
 function activityToFeature(record) {
-  const point = findSettlementPoint(record);
-  if (!point || !point.geometry || !point.geometry.coordinates) {
+  const coordinates = getCoordinatesForRecord(record);
+
+  if (!coordinates) {
     console.warn("Settlement not found in GeoJSON:", record);
     return null;
   }
@@ -1018,7 +1075,7 @@ function activityToFeature(record) {
     type: "Feature",
     geometry: {
       type: "Point",
-      coordinates: point.geometry.coordinates
+      coordinates
     },
     properties: record
   };
@@ -1031,13 +1088,21 @@ function getCurrentMetricField() {
 }
 
 function applyFilters() {
-  const selectedGroup = document.getElementById("activity-group-filter").value;
-  const selectedType = document.getElementById("activity-type-filter").value;
-  const selectedAssistance = document.getElementById("assistance-type-filter").value;
+  const selectedGroupRaw = document.getElementById("activity-group-filter").value;
+  const selectedTypeRaw = document.getElementById("activity-type-filter").value;
+  const selectedAssistanceRaw = document.getElementById("assistance-type-filter").value;
 
-  const selectedRaion = document.getElementById("raion-filter").value;
-  const selectedHromada = document.getElementById("hromada-filter").value;
-  const selectedSettlement = document.getElementById("settlement-filter").value;
+  const selectedRaionRaw = document.getElementById("raion-filter").value;
+  const selectedHromadaRaw = document.getElementById("hromada-filter").value;
+  const selectedSettlementRaw = document.getElementById("settlement-filter").value;
+
+  const selectedGroup = selectedGroupRaw ? normalizeActivityGroup(selectedGroupRaw) : "";
+  const selectedType = selectedTypeRaw ? normalizeValueForCompare(selectedTypeRaw) : "";
+  const selectedAssistance = selectedAssistanceRaw ? normalizeValueForCompare(selectedAssistanceRaw) : "";
+
+  const selectedRaion = selectedRaionRaw ? normalizeText(selectedRaionRaw) : "";
+  const selectedHromada = selectedHromadaRaw ? normalizeText(selectedHromadaRaw) : "";
+  const selectedSettlement = selectedSettlementRaw ? normalizeText(selectedSettlementRaw) : "";
 
   const selectedMetricField = getCurrentMetricField();
 
@@ -1048,15 +1113,13 @@ function applyFilters() {
   const dateTo = dateToValue ? new Date(dateToValue + "T23:59:59") : null;
 
   filteredActivities = activities.filter(item => {
-    const itemGroup = normalizeActivityGroup(item.activity_group);
+    const okGroup = !selectedGroup || item._normGroup === selectedGroup;
+    const okType = !selectedType || item._normType === selectedType;
+    const okAssistance = !selectedAssistance || item._normAssistance === selectedAssistance;
 
-    const okGroup = !selectedGroup || valuesMatch(itemGroup, selectedGroup);
-    const okType = !selectedType || valuesMatch(item.activity_type, selectedType);
-    const okAssistance = !selectedAssistance || valuesMatch(item.assistance_type, selectedAssistance);
-
-    const okRaion = !selectedRaion || valuesMatch(item.raion, selectedRaion);
-    const okHromada = !selectedHromada || valuesMatch(item.hromada, selectedHromada);
-    const okSettlement = !selectedSettlement || valuesMatch(item.settlement, selectedSettlement);
+    const okRaion = !selectedRaion || item._normRaion === selectedRaion;
+    const okHromada = !selectedHromada || item._normHromada === selectedHromada;
+    const okSettlement = !selectedSettlement || item._normSettlement === selectedSettlement;
 
     let okDate = true;
 
@@ -1073,136 +1136,6 @@ function applyFilters() {
   updateSummary(filteredActivities, selectedMetricField);
 }
 
-
-function buildAggregatedPointFeatures(records, metricField) {
-  const grouped = new Map();
-
-  records.forEach(record => {
-    const point = findSettlementPoint(record);
-
-    if (!point || !point.geometry || !point.geometry.coordinates) {
-      console.warn("Settlement not found in GeoJSON:", record);
-      return;
-    }
-
-    const key = [
-      normalizeText(record.raion),
-      normalizeText(record.hromada),
-      normalizeText(record.settlement)
-    ].join("||");
-
-    const metricValue = getMetricValue(record, metricField);
-
-    if (!grouped.has(key)) {
-      grouped.set(key, {
-        type: "Feature",
-        geometry: {
-          type: "Point",
-          coordinates: point.geometry.coordinates
-        },
-        properties: {
-          raion: record.raion || "",
-          hromada: record.hromada || "",
-          settlement: record.settlement || "",
-          metric_value: 0,
-          records_count: 0,
-          records: []
-        }
-      });
-    }
-
-    const feature = grouped.get(key);
-    feature.properties.metric_value += metricValue;
-    feature.properties.records_count += 1;
-    feature.properties.records.push(record);
-  });
-
-  return [...grouped.values()].filter(feature => feature.properties.metric_value > 0);
-}
-
-function getMarkerColor(value, maxValue) {
-  if (maxValue <= 0) return "#94a3b8";
-
-  const ratio = value / maxValue;
-
-  if (ratio >= 0.75) return "#fb923c";
-  if (ratio >= 0.40) return "#facc15";
-  if (ratio >= 0.15) return "#84cc16";
-
-  return "#86efac";
-}
-
-function createValueMarker(latlng, value, maxValue, record) {
-  const color = getMarkerColor(value, maxValue);
-  const label = Number.isInteger(value) ? value : Math.round(value);
-
-  return L.marker(latlng, {
-    metricValue: value,
-    sourceRecord: record,
-    icon: L.divIcon({
-      className: "value-marker",
-      html: `<div style="
-        width: 34px;
-        height: 34px;
-        border-radius: 50%;
-        background: ${color};
-        color: #111827;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: 800;
-        font-size: 12px;
-        border: 2px solid rgba(255,255,255,.85);
-        box-shadow: 0 3px 10px rgba(15,23,42,.25);
-      ">${label}</div>`,
-      iconSize: [34, 34],
-      iconAnchor: [17, 17]
-    })
-  });
-}
-
-function buildHeatDataByLocation(records, metricField) {
-  const grouped = new Map();
-
-  records.forEach(record => {
-    const point = findSettlementPoint(record);
-
-    if (!point || !point.geometry || !point.geometry.coordinates) {
-      return;
-    }
-
-    const coords = point.geometry.coordinates;
-    const key = coords[1] + "||" + coords[0];
-    const value = getMetricValue(record, metricField);
-
-    if (!grouped.has(key)) {
-      grouped.set(key, {
-        lat: coords[1],
-        lon: coords[0],
-        value: 0
-      });
-    }
-
-    grouped.get(key).value += value;
-  });
-
-  const points = [...grouped.values()];
-  let maxValue = 0;
-
-  points.forEach(point => {
-    maxValue = Math.max(maxValue, safeNumber(point.value));
-  });
-
-  if (maxValue <= 0) maxValue = 1;
-
-  return points
-    .filter(point => safeNumber(point.value) > 0)
-    .map(point => {
-      const intensity = Math.max(0.15, Math.min(1, Math.sqrt(point.value / maxValue)));
-      return [point.lat, point.lon, intensity];
-    });
-}
-
 function renderMap(records, metricField) {
   clusterLayer.clearLayers();
 
@@ -1210,14 +1143,19 @@ function renderMap(records, metricField) {
     heatLayer.setLatLngs([]);
   }
 
-  const values = records.map(record => getMetricValue(record, metricField));
+  const values = records
+    .filter(record => record._coordinates)
+    .map(record => getMetricValue(record, metricField));
+
   let maxValue = Math.max(...values, 1);
 
-  records.forEach(record => {
-    const point = findSettlementPoint(record);
+  const markersArray = [];
+  const heatGroups = new Map();
 
-    if (!point || !point.geometry || !point.geometry.coordinates) {
-      console.warn("Settlement not found in GeoJSON:", record);
+  records.forEach(record => {
+    const coords = record._coordinates;
+
+    if (!coords) {
       return;
     }
 
@@ -1227,29 +1165,57 @@ function renderMap(records, metricField) {
       return;
     }
 
-    const coords = point.geometry.coordinates;
-    const marker = createValueMarker([coords[1], coords[0]], value, maxValue, record);
+    const latlng = [coords[1], coords[0]];
+    const marker = createValueMarker(latlng, value, maxValue, record);
 
-    const metricLabel = getMetricLabel(getSelectedMetricId ? getSelectedMetricId() : "");
+    const metricLabel = escapeHTML(getMetricLabel(getSelectedMetricId ? getSelectedMetricId() : ""));
 
     const html = `
-      <b>${record.settlement || ""}</b><br>
-      ${record.hromada || ""}, ${record.raion || ""}<br>
-      ${getText("popup.date", "Date")}: ${record.activity_date || "—"}<br>
-      ${getText("popup.activityGroup", "Activity group")}: ${getActivityGroupLabel(record.activity_group)}<br>
-      ${getText("popup.activityType", "Activity type")}: ${record.activity_type || "—"}<br>
-      ${getText("popup.assistanceType", "Assistance type")}: ${record.assistance_type || "—"}<br>
-      ${getText("popup.people", "People")}: ${safeNumber(record.people_total)}<br>
-      ${getText("popup.kits", "Kits")}: ${safeNumber(record.kits_total)}<br>
+      <b>${escapeHTML(record.settlement || "")}</b><br>
+      ${escapeHTML(record.hromada || "")}, ${escapeHTML(record.raion || "")}<br>
+      ${escapeHTML(getText("popup.date", "Date"))}: ${escapeHTML(record.activity_date || "—")}<br>
+      ${escapeHTML(getText("popup.activityGroup", "Activity group"))}: ${escapeHTML(getActivityGroupLabel(record.activity_group))}<br>
+      ${escapeHTML(getText("popup.activityType", "Activity type"))}: ${escapeHTML(record.activity_type || "—")}<br>
+      ${escapeHTML(getText("popup.assistanceType", "Assistance type"))}: ${escapeHTML(record.assistance_type || "—")}<br>
+      ${escapeHTML(getText("popup.people", "People"))}: ${safeNumber(record.people_total)}<br>
+      ${escapeHTML(getText("popup.kits", "Kits"))}: ${safeNumber(record.kits_total)}<br>
       <b>${metricLabel}:</b> ${value}
-      ${record.comment ? "<br>" + getText("popup.comment", "Comment") + ": " + record.comment : ""}
+      ${record.comment ? "<br>" + escapeHTML(getText("popup.comment", "Comment")) + ": " + escapeHTML(record.comment) : ""}
     `;
 
     marker.bindPopup(html);
-    clusterLayer.addLayer(marker);
+    markersArray.push(marker);
+
+    const heatKey = coords[1] + "||" + coords[0];
+
+    if (!heatGroups.has(heatKey)) {
+      heatGroups.set(heatKey, {
+        lat: coords[1],
+        lon: coords[0],
+        value: 0
+      });
+    }
+
+    heatGroups.get(heatKey).value += value;
   });
 
-  const heatData = buildHeatDataByLocation(records, metricField);
+  clusterLayer.addLayers(markersArray);
+
+  const heatPoints = [...heatGroups.values()];
+  let maxHeatValue = 0;
+
+  heatPoints.forEach(point => {
+    maxHeatValue = Math.max(maxHeatValue, safeNumber(point.value));
+  });
+
+  if (maxHeatValue <= 0) {
+    maxHeatValue = 1;
+  }
+
+  const heatData = heatPoints.map(point => {
+    const intensity = Math.max(0.15, Math.min(1, Math.sqrt(point.value / maxHeatValue)));
+    return [point.lat, point.lon, intensity];
+  });
 
   if (!heatLayer) {
     heatLayer = L.heatLayer(heatData, {
@@ -1485,7 +1451,10 @@ async function loadI18n() {
 }
 
 async function refreshLiveData() {
-  activities = await loadLiveActivities();
+  sessionStorage.removeItem("unicef_activities_cache");
+  sessionStorage.removeItem("unicef_activities_cache_time");
+
+  activities = await loadLiveActivities(true);
   filteredActivities = activities;
   applyFilters();
 }
