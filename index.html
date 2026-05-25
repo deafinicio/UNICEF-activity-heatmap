@@ -370,6 +370,45 @@
     }
   }
 
+
+  .metric-cluster-icon {
+    background: transparent;
+  }
+
+  .metric-cluster-bubble {
+    min-width: 38px;
+    height: 38px;
+    padding: 0 8px;
+    border-radius: 999px;
+    background: #facc15;
+    color: #111827;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 12px;
+    border: 2px solid rgba(255,255,255,.9);
+    box-shadow: 0 4px 12px rgba(15,23,42,.28);
+    white-space: nowrap;
+  }
+
+  .metric-cluster-bubble.high {
+    background: #fb923c;
+  }
+
+  .metric-cluster-bubble.mid {
+    background: #facc15;
+  }
+
+  .metric-cluster-bubble.low {
+    background: #86efac;
+  }
+
+  .value-marker {
+    background: transparent;
+    border: 0;
+  }
+
 </style>
 </head>
 
@@ -510,7 +549,37 @@ function updateSettlementOptions() {
 }
 
 
-let clusterLayer = L.markerClusterGroup();
+
+function getClusterColorClass(value) {
+  if (value >= 100) return "high";
+  if (value >= 10) return "mid";
+  return "low";
+}
+
+function createMetricClusterIcon(cluster) {
+  const markers = cluster.getAllChildMarkers();
+
+  const sum = markers.reduce((total, marker) => {
+    return total + safeNumber(marker.options.metricValue);
+  }, 0);
+
+  const label = Number.isInteger(sum) ? sum : Math.round(sum);
+  const colorClass = getClusterColorClass(sum);
+
+  return L.divIcon({
+    html: `<div class="metric-cluster-bubble ${colorClass}">${label}</div>`,
+    className: "metric-cluster-icon",
+    iconSize: null
+  });
+}
+
+let clusterLayer = L.markerClusterGroup({
+  showCoverageOnHover: false,
+  spiderfyOnMaxZoom: true,
+  disableClusteringAtZoom: 16,
+  maxClusterRadius: 55,
+  iconCreateFunction: createMetricClusterIcon
+});
 let heatLayer = null;
 let heatProxy = L.layerGroup();
 
@@ -1032,11 +1101,13 @@ function getMarkerColor(value, maxValue) {
   return "#86efac";
 }
 
-function createValueMarker(latlng, value, maxValue) {
+function createValueMarker(latlng, value, maxValue, record) {
   const color = getMarkerColor(value, maxValue);
   const label = Number.isInteger(value) ? value : Math.round(value);
 
   return L.marker(latlng, {
+    metricValue: value,
+    sourceRecord: record,
     icon: L.divIcon({
       className: "value-marker",
       html: `<div style="
@@ -1059,6 +1130,48 @@ function createValueMarker(latlng, value, maxValue) {
   });
 }
 
+function buildHeatDataByLocation(records, metricField) {
+  const grouped = new Map();
+
+  records.forEach(record => {
+    const point = findSettlementPoint(record);
+
+    if (!point || !point.geometry || !point.geometry.coordinates) {
+      return;
+    }
+
+    const coords = point.geometry.coordinates;
+    const key = coords[1] + "||" + coords[0];
+    const value = getMetricValue(record, metricField);
+
+    if (!grouped.has(key)) {
+      grouped.set(key, {
+        lat: coords[1],
+        lon: coords[0],
+        value: 0
+      });
+    }
+
+    grouped.get(key).value += value;
+  });
+
+  const points = [...grouped.values()];
+  let maxValue = 0;
+
+  points.forEach(point => {
+    maxValue = Math.max(maxValue, safeNumber(point.value));
+  });
+
+  if (maxValue <= 0) maxValue = 1;
+
+  return points
+    .filter(point => safeNumber(point.value) > 0)
+    .map(point => {
+      const intensity = Math.max(0.15, Math.min(1, Math.sqrt(point.value / maxValue)));
+      return [point.lat, point.lon, intensity];
+    });
+}
+
 function renderMap(records, metricField) {
   clusterLayer.clearLayers();
 
@@ -1066,45 +1179,46 @@ function renderMap(records, metricField) {
     heatLayer.setLatLngs([]);
   }
 
-  const features = buildAggregatedPointFeatures(records, metricField);
+  const values = records.map(record => getMetricValue(record, metricField));
+  let maxValue = Math.max(...values, 1);
 
-  let maxValue = 0;
-  features.forEach(feature => {
-    maxValue = Math.max(maxValue, safeNumber(feature.properties.metric_value));
-  });
+  records.forEach(record => {
+    const point = findSettlementPoint(record);
 
-  if (maxValue <= 0) maxValue = 1;
+    if (!point || !point.geometry || !point.geometry.coordinates) {
+      console.warn("Settlement not found in GeoJSON:", record);
+      return;
+    }
 
-  features.forEach(feature => {
-    const coords = feature.geometry.coordinates;
-    const p = feature.properties || {};
-    const value = safeNumber(p.metric_value);
+    const value = getMetricValue(record, metricField);
 
-    const marker = createValueMarker([coords[1], coords[0]], value, maxValue);
+    if (value <= 0) {
+      return;
+    }
 
-    const firstRecord = p.records && p.records[0] ? p.records[0] : {};
+    const coords = point.geometry.coordinates;
+    const marker = createValueMarker([coords[1], coords[0]], value, maxValue, record);
+
     const metricLabel = getMetricLabel(getSelectedMetricId ? getSelectedMetricId() : "");
 
     const html = `
-      <b>${p.settlement || ""}</b><br>
-      ${p.hromada || ""}, ${p.raion || ""}<br>
-      ${getText("summary.visibleRecords", "Records")}: ${p.records_count || 0}<br>
-      <b>${metricLabel}:</b> ${value}<br>
-      ${firstRecord.activity_type ? getText("popup.activityType", "Activity type") + ": " + firstRecord.activity_type + "<br>" : ""}
-      ${firstRecord.assistance_type ? getText("popup.assistanceType", "Assistance type") + ": " + firstRecord.assistance_type : ""}
+      <b>${record.settlement || ""}</b><br>
+      ${record.hromada || ""}, ${record.raion || ""}<br>
+      ${getText("popup.date", "Date")}: ${record.activity_date || "—"}<br>
+      ${getText("popup.activityGroup", "Activity group")}: ${getActivityGroupLabel(record.activity_group)}<br>
+      ${getText("popup.activityType", "Activity type")}: ${record.activity_type || "—"}<br>
+      ${getText("popup.assistanceType", "Assistance type")}: ${record.assistance_type || "—"}<br>
+      ${getText("popup.people", "People")}: ${safeNumber(record.people_total)}<br>
+      ${getText("popup.kits", "Kits")}: ${safeNumber(record.kits_total)}<br>
+      <b>${metricLabel}:</b> ${value}
+      ${record.comment ? "<br>" + getText("popup.comment", "Comment") + ": " + record.comment : ""}
     `;
 
     marker.bindPopup(html);
     clusterLayer.addLayer(marker);
   });
 
-  const heatData = features.map(feature => {
-    const coords = feature.geometry.coordinates;
-    const value = safeNumber(feature.properties.metric_value);
-    const intensity = Math.max(0.15, Math.min(1, Math.sqrt(value / maxValue)));
-
-    return [coords[1], coords[0], intensity];
-  });
+  const heatData = buildHeatDataByLocation(records, metricField);
 
   if (!heatLayer) {
     heatLayer = L.heatLayer(heatData, {
