@@ -336,6 +336,40 @@
     }
   }
 
+
+  .stats-bottom-bar {
+    position: absolute;
+    left: 50%;
+    bottom: 18px;
+    transform: translateX(-50%);
+    z-index: 900;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    gap: 8px;
+    padding: 8px;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.94);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 8px 28px rgba(15, 23, 42, 0.22);
+    max-width: calc(100vw - 380px);
+    overflow-x: auto;
+  }
+
+  .stats-bottom-bar .stat-card {
+    min-width: 88px;
+    padding: 7px 10px;
+  }
+
+  @media (max-width: 1100px) {
+    .stats-bottom-bar {
+      left: 12px;
+      right: 12px;
+      transform: none;
+      max-width: none;
+    }
+  }
+
 </style>
 </head>
 
@@ -939,61 +973,134 @@ function applyFilters() {
   updateSummary(filteredActivities, selectedMetricField);
 }
 
+
+function buildAggregatedPointFeatures(records, metricField) {
+  const grouped = new Map();
+
+  records.forEach(record => {
+    const point = findSettlementPoint(record);
+
+    if (!point || !point.geometry || !point.geometry.coordinates) {
+      console.warn("Settlement not found in GeoJSON:", record);
+      return;
+    }
+
+    const key = [
+      normalizeText(record.raion),
+      normalizeText(record.hromada),
+      normalizeText(record.settlement)
+    ].join("||");
+
+    const metricValue = getMetricValue(record, metricField);
+
+    if (!grouped.has(key)) {
+      grouped.set(key, {
+        type: "Feature",
+        geometry: {
+          type: "Point",
+          coordinates: point.geometry.coordinates
+        },
+        properties: {
+          raion: record.raion || "",
+          hromada: record.hromada || "",
+          settlement: record.settlement || "",
+          metric_value: 0,
+          records_count: 0,
+          records: []
+        }
+      });
+    }
+
+    const feature = grouped.get(key);
+    feature.properties.metric_value += metricValue;
+    feature.properties.records_count += 1;
+    feature.properties.records.push(record);
+  });
+
+  return [...grouped.values()].filter(feature => feature.properties.metric_value > 0);
+}
+
+function getMarkerColor(value, maxValue) {
+  if (maxValue <= 0) return "#94a3b8";
+
+  const ratio = value / maxValue;
+
+  if (ratio >= 0.75) return "#fb923c";
+  if (ratio >= 0.40) return "#facc15";
+  if (ratio >= 0.15) return "#84cc16";
+
+  return "#86efac";
+}
+
+function createValueMarker(latlng, value, maxValue) {
+  const color = getMarkerColor(value, maxValue);
+  const label = Number.isInteger(value) ? value : Math.round(value);
+
+  return L.marker(latlng, {
+    icon: L.divIcon({
+      className: "value-marker",
+      html: `<div style="
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        background: ${color};
+        color: #111827;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 800;
+        font-size: 12px;
+        border: 2px solid rgba(255,255,255,.85);
+        box-shadow: 0 3px 10px rgba(15,23,42,.25);
+      ">${label}</div>`,
+      iconSize: [34, 34],
+      iconAnchor: [17, 17]
+    })
+  });
+}
+
 function renderMap(records, metricField) {
   clusterLayer.clearLayers();
 
   if (heatLayer) {
     heatLayer.setLatLngs([]);
-
-    if (!map.hasLayer(heatProxy) && map.hasLayer(heatLayer)) {
-      map.removeLayer(heatLayer);
-    }
   }
 
-  const features = records.map(activityToFeature).filter(Boolean);
-
-  const geo = {
-    type: "FeatureCollection",
-    features
-  };
-
-  const markers = L.geoJSON(geo, {
-    pointToLayer: function(feature, latlng) {
-      return L.marker(latlng);
-    },
-    onEachFeature: function(feature, layer) {
-      const p = feature.properties || {};
-      const metricValue = getMetricValue(p, metricField);
-
-      const html = `
-        <b>${p.settlement || ""}</b><br>
-        ${p.hromada || ""}, ${p.raion || ""}<br>
-        ${getText("popup.date", "Date")}: ${p.activity_date || "—"}<br>
-        ${getText("popup.activityGroup", "Activity group")}: ${getActivityGroupLabel(p.activity_group)}<br>
-        ${getText("popup.activityType", "Activity type")}: ${p.activity_type || "—"}<br>
-        ${getText("popup.assistanceType", "Assistance type")}: ${p.assistance_type || "—"}<br>
-        ${getText("popup.people", "People")}: ${safeNumber(p.people_total)}<br>
-        ${getText("popup.kits", "Kits")}: ${safeNumber(p.kits_total)}<br>
-        <b>${getText("filters.metric", "Metric")}:</b> ${metricValue}
-        ${p.comment ? "<br>" + getText("popup.comment", "Comment") + ": " + p.comment : ""}
-      `;
-
-      layer.bindPopup(html);
-    }
-  });
-
-  clusterLayer.addLayer(markers);
+  const features = buildAggregatedPointFeatures(records, metricField);
 
   let maxValue = 0;
   features.forEach(feature => {
-    maxValue = Math.max(maxValue, getMetricValue(feature.properties, metricField));
+    maxValue = Math.max(maxValue, safeNumber(feature.properties.metric_value));
   });
 
   if (maxValue <= 0) maxValue = 1;
 
+  features.forEach(feature => {
+    const coords = feature.geometry.coordinates;
+    const p = feature.properties || {};
+    const value = safeNumber(p.metric_value);
+
+    const marker = createValueMarker([coords[1], coords[0]], value, maxValue);
+
+    const firstRecord = p.records && p.records[0] ? p.records[0] : {};
+    const metricLabel = getMetricLabel(getSelectedMetricId ? getSelectedMetricId() : "");
+
+    const html = `
+      <b>${p.settlement || ""}</b><br>
+      ${p.hromada || ""}, ${p.raion || ""}<br>
+      ${getText("summary.visibleRecords", "Records")}: ${p.records_count || 0}<br>
+      <b>${metricLabel}:</b> ${value}<br>
+      ${firstRecord.activity_type ? getText("popup.activityType", "Activity type") + ": " + firstRecord.activity_type + "<br>" : ""}
+      ${firstRecord.assistance_type ? getText("popup.assistanceType", "Assistance type") + ": " + firstRecord.assistance_type : ""}
+    `;
+
+    marker.bindPopup(html);
+    clusterLayer.addLayer(marker);
+  });
+
   const heatData = features.map(feature => {
     const coords = feature.geometry.coordinates;
-    const value = getMetricValue(feature.properties, metricField);
+    const value = safeNumber(feature.properties.metric_value);
     const intensity = Math.max(0.15, Math.min(1, Math.sqrt(value / maxValue)));
 
     return [coords[1], coords[0], intensity];
@@ -1044,47 +1151,36 @@ function updateSummary(records, metricField) {
   const totalConsultations = records.reduce((sum, item) =>
     sum + safeNumber(item.consultations_total), 0);
 
-  const totalMetric = records.reduce((sum, item) =>
-    sum + getMetricValue(item, metricField), 0);
+  const target = document.getElementById("stats-bottom-bar") || document.getElementById("summary-box");
 
-  document.getElementById("stats-bottom-bar").innerHTML = `
-    <div class="stats-grid">
-      <div class="stat-card">
-        <div class="stat-label">${getBilingualLabel("summary.events", "Події", "Events")}</div>
-        <div class="stat-value">${totalEvents}</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">${getBilingualLabel("summary.people", "Люди", "People")}</div>
-        <div class="stat-value">${totalPeople}</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">${getBilingualLabel("summary.kits", "Набори", "Kits")}</div>
-        <div class="stat-value">${totalKits}</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">${getBilingualLabel("summary.children", "Діти", "Children")}</div>
-        <div class="stat-value">${totalChildren}</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">${getBilingualLabel("summary.adults", "Дорослі", "Adults")}</div>
-        <div class="stat-value">${totalAdults}</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">${getBilingualLabel("summary.households", "Домогосп.", "HH")}</div>
-        <div class="stat-value">${totalHouseholds}</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">${getBilingualLabel("summary.consultations", "Консульт.", "Consult.")}</div>
-        <div class="stat-value">${totalConsultations}</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">${getBilingualLabel("summary.currentMetric", "Показник", "Metric")}</div>
-        <div class="stat-value">${totalMetric}</div>
-      </div>
-      <div class="stat-card wide">
-        <div class="stat-label">${getBilingualLabel("summary.visibleRecords", "Видимі записи", "Visible records")}</div>
-        <div class="stat-value">${records.length}</div>
-      </div>
+  target.innerHTML = `
+    <div class="stat-card">
+      <div class="stat-label">${getBilingualLabel("summary.events", "Події", "Events")}</div>
+      <div class="stat-value">${totalEvents}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">${getBilingualLabel("summary.people", "Люди", "People")}</div>
+      <div class="stat-value">${totalPeople}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">${getBilingualLabel("summary.kits", "Набори", "Kits")}</div>
+      <div class="stat-value">${totalKits}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">${getBilingualLabel("summary.children", "Діти", "Children")}</div>
+      <div class="stat-value">${totalChildren}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">${getBilingualLabel("summary.adults", "Дорослі", "Adults")}</div>
+      <div class="stat-value">${totalAdults}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">${getBilingualLabel("summary.households", "Домогосп.", "HH")}</div>
+      <div class="stat-value">${totalHouseholds}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">${getBilingualLabel("summary.consultations", "Консульт.", "Consult.")}</div>
+      <div class="stat-value">${totalConsultations}</div>
     </div>
   `;
 }
@@ -1328,7 +1424,7 @@ control.onAdd = function() {
     <button id="reset-filters" type="button" class="secondary-btn">Скинути фільтри</button>
     <button id="refresh-data" type="button" class="secondary-btn">Оновити дані</button>
 
-    <div id="summary-box"></div>
+    <div id="summary-box" style="display:none;"></div>
   `;
 
   L.DomEvent.disableClickPropagation(div);
