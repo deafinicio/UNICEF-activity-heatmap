@@ -409,11 +409,91 @@
     border: 0;
   }
 
+
+  .leaflet-control-layers.hidden-map-settings {
+    display: none;
+  }
+
+  .heat-settings-box {
+    position: absolute;
+    left: 58px;
+    top: 164px;
+    z-index: 910;
+    width: 245px;
+    background: rgba(255,255,255,.96);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(203,213,225,.9);
+    border-radius: 14px;
+    box-shadow: 0 6px 20px rgba(15,23,42,.18);
+    padding: 10px;
+    font-size: 12px;
+    color: #0f172a;
+  }
+
+  .heat-settings-box.hidden-heat-settings {
+    display: none;
+  }
+
+  .heat-settings-box label {
+    display: block;
+    margin-top: 8px;
+    font-weight: 700;
+    color: #334155;
+  }
+
+  .heat-settings-box input[type="range"] {
+    width: 100%;
+  }
+
+  .heat-settings-value {
+    float: right;
+    font-weight: 800;
+    color: #2563eb;
+  }
+
+  .heat-settings-title {
+    font-weight: 800;
+    margin-bottom: 6px;
+  }
+
+  .metric-cluster-bubble {
+    opacity: .65;
+  }
+
+  .value-marker > div {
+    opacity: .65;
+  }
+
 </style>
 </head>
 
 <body>
 <div id="map"></div>
+
+<div id="heat-settings-box" class="heat-settings-box hidden-heat-settings">
+  <div class="heat-settings-title">Heatmap</div>
+
+  <label>
+    Radius <span id="heat-radius-value" class="heat-settings-value">38</span>
+  </label>
+  <input id="heat-radius-control" type="range" min="10" max="90" step="1" value="38">
+
+  <label>
+    Blur <span id="heat-blur-value" class="heat-settings-value">32</span>
+  </label>
+  <input id="heat-blur-control" type="range" min="5" max="80" step="1" value="32">
+
+  <label>
+    Min opacity <span id="heat-opacity-value" class="heat-settings-value">0.30</span>
+  </label>
+  <input id="heat-opacity-control" type="range" min="0.05" max="0.90" step="0.05" value="0.30">
+
+  <label>
+    Intensity <span id="heat-intensity-value" class="heat-settings-value">1.00</span>
+  </label>
+  <input id="heat-intensity-control" type="range" min="0.30" max="2.50" step="0.05" value="1.00">
+</div>
+
 <div id="stats-bottom-bar" class="stats-bottom-bar"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -603,6 +683,13 @@ let clusterLayer = L.markerClusterGroup({
 let heatLayer = null;
 let heatProxy = L.layerGroup();
 
+const heatSettings = {
+  radius: 38,
+  blur: 32,
+  minOpacity: 0.30,
+  intensity: 1.00
+};
+
 const map = L.map("map", { zoomControl: true }).setView([49.9935, 36.2304], 8);
 
 const kharkivBounds = L.latLngBounds([[48.5, 34.8], [50.6, 38.3]]);
@@ -743,7 +830,8 @@ function getAllMetrics() {
   const excludedFields = new Set([
     "female_total",
     "male_total",
-    "age_18_plus_total"
+    "age_18_plus_total",
+    "consultations_total"
   ]);
 
   const seenFields = new Set();
@@ -1256,16 +1344,16 @@ function renderMap(records, metricField) {
   }
 
   const heatData = heatPoints.map(point => {
-    const intensity = Math.max(0.15, Math.min(1, Math.sqrt(point.value / maxHeatValue)));
+    const intensity = Math.max(0.05, Math.min(1, Math.sqrt(point.value / maxHeatValue) * heatSettings.intensity));
     return [point.lat, point.lon, intensity];
   });
 
   if (!heatLayer) {
     heatLayer = L.heatLayer(heatData, {
-      radius: 38,
-      blur: 32,
+      radius: heatSettings.radius,
+      blur: heatSettings.blur,
       maxZoom: 12,
-      minOpacity: 0.30,
+      minOpacity: heatSettings.minOpacity,
       gradient: {
         0.08: "#6a00ff",
         0.22: "#5b3dff",
@@ -1331,10 +1419,6 @@ function updateSummary(records, metricField) {
     <div class="stat-card">
       <div class="stat-label">${getBilingualLabel("summary.households", "Домогосп.", "HH")}</div>
       <div class="stat-value">${totalHouseholds}</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-label">${getBilingualLabel("summary.consultations", "Консульт.", "Consult.")}</div>
-      <div class="stat-value">${totalConsultations}</div>
     </div>
   `;
 }
@@ -1623,6 +1707,7 @@ mapActionsControl.onAdd = function() {
   div.innerHTML = `
     <button id="toggle-filters-btn" type="button" class="map-action-btn" title="Show / hide filters">☰</button>
     <button id="export-png-btn" type="button" class="map-action-btn" title="Export PNG">📷</button>
+    <button id="toggle-map-settings-btn" type="button" class="map-action-btn" title="Map settings">🗺️</button>
   `;
 
   L.DomEvent.disableClickPropagation(div);
@@ -1632,6 +1717,48 @@ mapActionsControl.onAdd = function() {
 };
 
 mapActionsControl.addTo(map);
+
+function hideMapSettingsOnStart() {
+  const layersControl = document.querySelector(".leaflet-control-layers");
+
+  if (layersControl) {
+    layersControl.classList.add("hidden-map-settings");
+  }
+}
+
+setTimeout(hideMapSettingsOnStart, 0);
+
+
+function updateHeatSettingsFromControls() {
+  const radiusControl = document.getElementById("heat-radius-control");
+  const blurControl = document.getElementById("heat-blur-control");
+  const opacityControl = document.getElementById("heat-opacity-control");
+  const intensityControl = document.getElementById("heat-intensity-control");
+
+  if (!radiusControl || !blurControl || !opacityControl || !intensityControl) {
+    return;
+  }
+
+  heatSettings.radius = Number(radiusControl.value);
+  heatSettings.blur = Number(blurControl.value);
+  heatSettings.minOpacity = Number(opacityControl.value);
+  heatSettings.intensity = Number(intensityControl.value);
+
+  document.getElementById("heat-radius-value").textContent = heatSettings.radius;
+  document.getElementById("heat-blur-value").textContent = heatSettings.blur;
+  document.getElementById("heat-opacity-value").textContent = heatSettings.minOpacity.toFixed(2);
+  document.getElementById("heat-intensity-value").textContent = heatSettings.intensity.toFixed(2);
+
+  if (heatLayer) {
+    heatLayer.setOptions({
+      radius: heatSettings.radius,
+      blur: heatSettings.blur,
+      minOpacity: heatSettings.minOpacity
+    });
+  }
+
+  renderMap(filteredActivities, getCurrentMetricField());
+}
 
 async function exportMapToPng() {
   const button = document.getElementById("export-png-btn");
@@ -1697,6 +1824,28 @@ setTimeout(() => {
   });
 
   document.getElementById("export-png-btn").addEventListener("click", exportMapToPng);
+
+  document.getElementById("toggle-map-settings-btn").addEventListener("click", () => {
+    const layersControl = document.querySelector(".leaflet-control-layers");
+    const heatSettingsBox = document.getElementById("heat-settings-box");
+
+    if (layersControl) {
+      layersControl.classList.toggle("hidden-map-settings");
+    }
+
+    if (heatSettingsBox) {
+      heatSettingsBox.classList.toggle("hidden-heat-settings");
+    }
+  });
+
+  ["heat-radius-control", "heat-blur-control", "heat-opacity-control", "heat-intensity-control"].forEach(id => {
+    const control = document.getElementById(id);
+
+    if (control) {
+      control.addEventListener("input", updateHeatSettingsFromControls);
+    }
+  });
+
 
   document.getElementById("refresh-data").addEventListener("click", async () => {
     await refreshLiveData();
