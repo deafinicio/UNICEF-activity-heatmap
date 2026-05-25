@@ -1,15 +1,16 @@
-const PATHS = {
+from pathlib import Path
+
+app_js = r'''const PATHS = {
   schema: "../config/form-schema.json",
   locations: "locations.json"
 };
 
-// Paste Apps Script Web App URL here when backend is ready.
-// Example: const APPS_SCRIPT_URL = "https://script.google.com/macros/s/XXXX/exec";
 const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw6ixPdp0tgPCH7dk4UYlZilgyZqHG4kwBw-e2RE3-WY8QaagZ_1uGUUVlcd5pyeSIfSg/exec";
 
 let lang = localStorage.getItem("unicef_form_lang") || "uk";
 let schema = null;
 let locations = null;
+let isSubmitting = false;
 
 const ui = {
   uk: {
@@ -20,11 +21,14 @@ const ui = {
     calculatedTotals: "Розраховані підсумки",
     submit: "Надіслати",
     reset: "Очистити",
-    preview: "Попередній перегляд запису",
     selectPlaceholder: "Оберіть значення",
-    success: "Дані підготовлено. Після підключення Apps Script вони будуть надсилатися в Google Sheets.",
     sent: "Дані успішно надіслано.",
     error: "Помилка надсилання даних.",
+    submitting: "Надсилання даних...",
+    submittingButton: "Надсилається...",
+    dateError: "Дата активності не може бути пізнішою за дату заповнення форми.",
+    successModalTitle: "Дані успішно надіслані",
+    successModalText: "Запис додано до таблиці. Натисніть OK, щоб перейти до нової чистої форми.",
     totals: {
       people: "Усього людей",
       female: "Жінки / дівчата",
@@ -45,11 +49,14 @@ const ui = {
     calculatedTotals: "Calculated totals",
     submit: "Submit",
     reset: "Reset",
-    preview: "Submission preview",
     selectPlaceholder: "Select value",
-    success: "Data prepared. After Apps Script is connected, it will be sent to Google Sheets.",
     sent: "Data submitted successfully.",
     error: "Submission error.",
+    submitting: "Submitting data...",
+    submittingButton: "Submitting...",
+    dateError: "Activity date cannot be later than the form submission date.",
+    successModalTitle: "Data submitted successfully",
+    successModalText: "The record has been added to the table. Press OK to start a new clean form.",
     totals: {
       people: "Total people",
       female: "Female",
@@ -74,7 +81,27 @@ function labelOf(field) {
 
 function safeNumber(value) {
   const n = Number(value);
-  return Number.isFinite(n) ? n : 0;
+  return Number.isFinite(n) && n >= 0 ? n : 0;
+}
+
+function sanitizeText(value) {
+  return String(value ?? "")
+    .replace(/[<>]/g, "")
+    .replace(/javascript:/gi, "")
+    .replace(/on\w+=/gi, "")
+    .trim();
+}
+
+function sanitizePayloadValue(value) {
+  return sanitizeText(value).slice(0, 1000);
+}
+
+function getTodayISO() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function createField(field) {
@@ -102,8 +129,8 @@ function createField(field) {
     if (field.options) {
       field.options.forEach(option => {
         const item = document.createElement("option");
-        item.value = option;
-        item.textContent = option;
+        item.value = sanitizeText(option);
+        item.textContent = sanitizeText(option);
         input.appendChild(item);
       });
     }
@@ -111,14 +138,29 @@ function createField(field) {
     input = document.createElement("textarea");
     input.id = field.id;
     input.name = field.id;
+    input.maxLength = 1000;
     if (field.required) input.required = true;
   } else {
     input = document.createElement("input");
     input.id = field.id;
     input.name = field.id;
     input.type = field.type || "text";
+
     if (field.required) input.required = true;
     if (field.min !== undefined) input.min = field.min;
+
+    if (field.type === "number") {
+      input.step = "1";
+      input.inputMode = "numeric";
+    }
+
+    if (field.type === "date") {
+      input.max = getTodayISO();
+    }
+
+    if (field.type === "text") {
+      input.maxLength = 255;
+    }
   }
 
   wrapper.appendChild(input);
@@ -127,6 +169,7 @@ function createField(field) {
 
 function populateActivityGroups() {
   const select = document.getElementById("activity_group");
+  const previous = select.value;
   select.innerHTML = "";
 
   Object.entries(schema.groups).forEach(([id, group]) => {
@@ -136,7 +179,10 @@ function populateActivityGroups() {
     select.appendChild(option);
   });
 
-  select.value = schema.default_group || Object.keys(schema.groups)[0];
+  select.value =
+    previous && schema.groups[previous]
+      ? previous
+      : schema.default_group || Object.keys(schema.groups)[0];
 }
 
 function getRaions() {
@@ -154,6 +200,7 @@ function getSettlements(raion, hromada) {
 }
 
 function fillSelect(select, values) {
+  const previous = select.value;
   select.innerHTML = "";
 
   const defaultOption = document.createElement("option");
@@ -163,10 +210,14 @@ function fillSelect(select, values) {
 
   values.forEach(value => {
     const option = document.createElement("option");
-    option.value = value;
-    option.textContent = value;
+    option.value = sanitizeText(value);
+    option.textContent = sanitizeText(value);
     select.appendChild(option);
   });
+
+  if ([...select.options].some(option => option.value === previous)) {
+    select.value = previous;
+  }
 }
 
 function renderCommonFields() {
@@ -188,12 +239,12 @@ function renderCommonFields() {
   raion.addEventListener("change", () => {
     fillSelect(hromada, getHromadas(raion.value));
     fillSelect(settlement, []);
-    updatePreview();
+    updateCalculatedSummary();
   });
 
   hromada.addEventListener("change", () => {
     fillSelect(settlement, getSettlements(raion.value, hromada.value));
-    updatePreview();
+    updateCalculatedSummary();
   });
 }
 
@@ -237,47 +288,69 @@ function collectPayload() {
   const payload = {};
 
   for (const [key, value] of data.entries()) {
-    payload[key] = value;
+    payload[key] = sanitizePayloadValue(value);
   }
 
   payload.created_at = new Date().toISOString();
   payload.event_count = 1;
 
   const femaleFields = [
-    "female_0_4", "female_5_9", "female_10_14", "female_15_17", "female_18_plus"
+    "female_0_4",
+    "female_5_9",
+    "female_10_14",
+    "female_15_17",
+    "female_18_plus"
   ];
 
   const maleFields = [
-    "male_0_4", "male_5_9", "male_10_14", "male_15_17", "male_18_plus"
+    "male_0_4",
+    "male_5_9",
+    "male_10_14",
+    "male_15_17",
+    "male_18_plus"
   ];
 
-  payload.female_total = femaleFields.reduce((sum, key) => sum + safeNumber(payload[key]), 0);
-  payload.male_total = maleFields.reduce((sum, key) => sum + safeNumber(payload[key]), 0);
+  payload.female_total = femaleFields.reduce(
+    (sum, key) => sum + safeNumber(payload[key]),
+    0
+  );
 
-  payload.age_0_4_total = safeNumber(payload.female_0_4) + safeNumber(payload.male_0_4);
-  payload.age_5_9_total = safeNumber(payload.female_5_9) + safeNumber(payload.male_5_9);
-  payload.age_10_14_total = safeNumber(payload.female_10_14) + safeNumber(payload.male_10_14);
-  payload.age_15_17_total = safeNumber(payload.female_15_17) + safeNumber(payload.male_15_17);
-  payload.age_18_plus_total = safeNumber(payload.female_18_plus) + safeNumber(payload.male_18_plus);
+  payload.male_total = maleFields.reduce(
+    (sum, key) => sum + safeNumber(payload[key]),
+    0
+  );
 
-  const demographicPeople = payload.female_total + payload.male_total;
-  const demographicChildren =
+  payload.age_0_4_total =
+    safeNumber(payload.female_0_4) + safeNumber(payload.male_0_4);
+
+  payload.age_5_9_total =
+    safeNumber(payload.female_5_9) + safeNumber(payload.male_5_9);
+
+  payload.age_10_14_total =
+    safeNumber(payload.female_10_14) + safeNumber(payload.male_10_14);
+
+  payload.age_15_17_total =
+    safeNumber(payload.female_15_17) + safeNumber(payload.male_15_17);
+
+  payload.age_18_plus_total =
+    safeNumber(payload.female_18_plus) + safeNumber(payload.male_18_plus);
+
+  payload.people_total = payload.female_total + payload.male_total;
+
+  payload.children_total =
     payload.age_0_4_total +
     payload.age_5_9_total +
     payload.age_10_14_total +
     payload.age_15_17_total;
 
-  if (!safeNumber(payload.people_total) && demographicPeople > 0) {
-    payload.people_total = demographicPeople;
-  }
+  payload.adults_total = payload.age_18_plus_total;
 
-  if (!safeNumber(payload.children_total) && demographicChildren > 0) {
-    payload.children_total = demographicChildren;
-  }
-
-  if (!safeNumber(payload.adults_total) && payload.age_18_plus_total > 0) {
-    payload.adults_total = payload.age_18_plus_total;
-  }
+  /*
+    Consultations are intentionally not used as a separate map metric.
+    Each submitted consultation / mobile medical activity is counted
+    through event_count = 1 and appears on the map under "Події / Events".
+  */
+  payload.consultations_total = "";
 
   return payload;
 }
@@ -298,15 +371,26 @@ function updateCalculatedSummary(payload = collectPayload()) {
   `;
 }
 
-function updatePreview() {
-  const payload = collectPayload();
-  updateCalculatedSummary(payload);
-  document.getElementById("payload-preview").textContent =
-    JSON.stringify(payload, null, 2);
+function validateActivityDate() {
+  const dateInput = document.getElementById("activity_date");
+
+  if (!dateInput) return true;
+
+  dateInput.max = getTodayISO();
+  dateInput.classList.remove("input-error");
+
+  if (dateInput.value && dateInput.value > getTodayISO()) {
+    dateInput.classList.add("input-error");
+    setStatus(tr("dateError"), "error");
+    return false;
+  }
+
+  return true;
 }
 
 function translateStaticUI() {
   document.documentElement.lang = lang;
+
   document.getElementById("page-title").textContent = tr("pageTitle");
   document.getElementById("page-subtitle").textContent = tr("pageSubtitle");
   document.getElementById("activity-group-label").textContent = tr("activityGroup");
@@ -314,7 +398,6 @@ function translateStaticUI() {
   document.getElementById("summary-title").textContent = tr("calculatedTotals");
   document.getElementById("submit-btn").textContent = tr("submit");
   document.getElementById("reset-btn").textContent = tr("reset");
-  document.getElementById("preview-title").textContent = tr("preview");
 }
 
 function renderForm() {
@@ -323,7 +406,7 @@ function renderForm() {
   renderCommonFields();
   renderGroupFields();
   renderDemographics();
-  updatePreview();
+  updateCalculatedSummary();
 }
 
 async function submitPayload(payload) {
@@ -349,6 +432,23 @@ function setStatus(message, type = "") {
   status.className = "status " + type;
 }
 
+function showSuccessModal() {
+  document.getElementById("success-modal-title").textContent = tr("successModalTitle");
+  document.getElementById("success-modal-text").textContent = tr("successModalText");
+  document.getElementById("success-modal").classList.remove("hidden");
+}
+
+function resetFormAfterSuccess() {
+  document.getElementById("activity-form").reset();
+
+  populateActivityGroups();
+  renderCommonFields();
+  renderGroupFields();
+  renderDemographics();
+  updateCalculatedSummary();
+  setStatus("");
+}
+
 async function init() {
   const [schemaResponse, locationsResponse] = await Promise.all([
     fetch(PATHS.schema),
@@ -362,77 +462,61 @@ async function init() {
 
   document.getElementById("activity_group").addEventListener("change", () => {
     renderGroupFields();
-    updatePreview();
+    updateCalculatedSummary();
   });
 
-  document.getElementById("activity-form").addEventListener("input", updatePreview);
-  document.getElementById("activity-form").addEventListener("change", updatePreview);
+  document.getElementById("activity-form").addEventListener("input", () => {
+    validateActivityDate();
+    updateCalculatedSummary();
+  });
+
+  document.getElementById("activity-form").addEventListener("change", () => {
+    validateActivityDate();
+    updateCalculatedSummary();
+  });
 
   document.getElementById("reset-btn").addEventListener("click", () => {
-    document.getElementById("activity-form").reset();
-    populateActivityGroups();
-    renderCommonFields();
-    renderGroupFields();
-    renderDemographics();
-    updatePreview();
-    setStatus("");
+    resetFormAfterSuccess();
   });
 
- let isSubmitting = false;
+  document.getElementById("activity-form").addEventListener("submit", async event => {
+    event.preventDefault();
 
-function showSuccessModal() {
-  document.getElementById("success-modal-title").textContent =
-    lang === "uk" ? "Дані успішно надіслані" : "Data submitted successfully";
+    if (isSubmitting) return;
+    if (!validateActivityDate()) return;
 
-  document.getElementById("success-modal-text").textContent =
-    lang === "uk" ? "Запис додано до таблиці." : "The record has been added to the table.";
+    if (!document.getElementById("activity-form").checkValidity()) {
+      document.getElementById("activity-form").reportValidity();
+      return;
+    }
 
-  document.getElementById("success-modal").classList.remove("hidden");
-}
+    isSubmitting = true;
 
-function resetFormAfterSuccess() {
-  document.getElementById("activity-form").reset();
+    const submitButton = document.getElementById("submit-btn");
+    submitButton.disabled = true;
+    submitButton.textContent = tr("submittingButton");
 
-  populateActivityGroups();
-  renderCommonFields();
-  renderGroupFields();
-  renderDemographics();
-  updatePreview();
-  setStatus("");
-}
+    setStatus(tr("submitting"));
 
-document.getElementById("activity-form").addEventListener("submit", async event => {
-  event.preventDefault();
+    const payload = collectPayload();
 
-  if (isSubmitting) return;
+    try {
+      await submitPayload(payload);
+      showSuccessModal();
+    } catch (error) {
+      console.error(error);
+      setStatus(tr("error"), "error");
+    } finally {
+      isSubmitting = false;
+      submitButton.disabled = false;
+      submitButton.textContent = tr("submit");
+    }
+  });
 
-  isSubmitting = true;
-
-  const submitButton = document.getElementById("submit-btn");
-  submitButton.disabled = true;
-  submitButton.textContent = lang === "uk" ? "Надсилається..." : "Submitting...";
-
-  setStatus(lang === "uk" ? "Надсилання даних..." : "Submitting data...");
-
-  const payload = collectPayload();
-
-  try {
-    await submitPayload(payload);
-    showSuccessModal();
-  } catch (error) {
-    console.error(error);
-    setStatus(tr("error"), "error");
-  } finally {
-    isSubmitting = false;
-    submitButton.disabled = false;
-    submitButton.textContent = tr("submit");
-  }
-});
-
-document.getElementById("success-modal-ok").addEventListener("click", () => {
-  document.getElementById("success-modal").classList.add("hidden");
-  resetFormAfterSuccess();
-});
+  document.getElementById("success-modal-ok").addEventListener("click", () => {
+    document.getElementById("success-modal").classList.add("hidden");
+    resetFormAfterSuccess();
+  });
 
   document.getElementById("lang-uk").addEventListener("click", () => {
     lang = "uk";
@@ -451,3 +535,8 @@ init().catch(error => {
   console.error(error);
   setStatus("Initialization error. Check console.", "error");
 });
+'''
+
+path = Path("/mnt/data/app.js")
+path.write_text(app_js, encoding="utf-8")
+print(path)
