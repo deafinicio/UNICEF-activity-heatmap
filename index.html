@@ -1126,41 +1126,77 @@ function getBilingualLabel(key, ukFallback, enFallback) {
     : getText(key, enFallback);
 }
 
-async function loadLiveActivities(forceRefresh = false) {
-  const CACHE_KEY = "unicef_activities_cache";
-  const CACHE_TIME_KEY = "unicef_activities_cache_time";
-  const CACHE_TTL = 30 * 60 * 1000; // 30 хвилин
+// ── Кешування в localStorage між сесіями ────────────────────────────
+// При першому завантаженні (або після 30 хв) — запит до Google Sheets.
+// При повторному відкритті сторінки — одразу показуємо кеш,
+// і тихо оновлюємо дані у фоні, якщо кеш старший за 30 хв.
 
-  if (!forceRefresh) {
-    const cachedData = sessionStorage.getItem(CACHE_KEY);
-    const cachedTime = sessionStorage.getItem(CACHE_TIME_KEY);
+const CACHE_KEY      = "unicef_activities_v2";
+const CACHE_TIME_KEY = "unicef_activities_v2_time";
+const CACHE_TTL      = 30 * 60 * 1000; // 30 хвилин
 
-    if (
-      cachedData &&
-      cachedTime &&
-      Date.now() - parseInt(cachedTime, 10) < CACHE_TTL
-    ) {
-      const rows = JSON.parse(cachedData);
-      return Array.isArray(rows)
-        ? rows.map(normalizeActivityRow)
-        : [];
-    }
+function getCachedRows() {
+  try {
+    const raw  = localStorage.getItem(CACHE_KEY);
+    const time = localStorage.getItem(CACHE_TIME_KEY);
+    if (!raw || !time) return null;
+    return { rows: JSON.parse(raw), time: parseInt(time, 10) };
+  } catch { return null; }
+}
+
+function saveCacheRows(rows) {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify(rows));
+    localStorage.setItem(CACHE_TIME_KEY, Date.now().toString());
+  } catch (e) {
+    // localStorage переповнений — ігноруємо
+    console.warn("Cache write failed:", e.message);
   }
+}
 
+async function fetchFromServer() {
   const response = await fetch(APPS_SCRIPT_DATA_URL + "?nocache=" + Date.now());
+  if (!response.ok) throw new Error("Не вдалося завантажити дані з Google Sheets (HTTP " + response.status + ")");
+  return await response.json();
+}
 
-  if (!response.ok) {
-    throw new Error("Failed to load activities from Google Sheets");
+async function loadLiveActivities(forceRefresh = false) {
+  const cached = getCachedRows();
+
+  // Є свіжий кеш і не примусове оновлення — одразу повертаємо
+  if (!forceRefresh && cached && (Date.now() - cached.time < CACHE_TTL)) {
+    return Array.isArray(cached.rows) ? cached.rows.map(normalizeActivityRow) : [];
   }
 
-  const rows = await response.json();
+  // Є старий кеш — показуємо його одразу, а свіжі дані тягнемо у фоні
+  if (!forceRefresh && cached) {
+    const staleRows = Array.isArray(cached.rows) ? cached.rows.map(normalizeActivityRow) : [];
 
-  sessionStorage.setItem(CACHE_KEY, JSON.stringify(rows));
-  sessionStorage.setItem(CACHE_TIME_KEY, Date.now().toString());
+    // Фоновий запит — не блокує рендер
+    fetchFromServer().then(rows => {
+      saveCacheRows(rows);
+      activities = Array.isArray(rows) ? rows.map(normalizeActivityRow) : [];
+      filteredActivities = activities;
+      applyFilters();
+      // Показуємо дискретну підказку що дані оновились
+      const bar = document.getElementById("stats-bottom-bar");
+      if (bar) {
+        const hint = document.createElement("span");
+        hint.style.cssText = "position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:11px;opacity:.55;";
+        hint.textContent = "↺ оновлено";
+        bar.style.position = "relative";
+        bar.appendChild(hint);
+        setTimeout(() => hint.remove(), 3000);
+      }
+    }).catch(err => console.warn("Фонове оновлення не вдалося:", err.message));
 
-  return Array.isArray(rows)
-    ? rows.map(normalizeActivityRow)
-    : [];
+    return staleRows;
+  }
+
+  // Кешу немає зовсім — чекаємо на сервер (перший запуск)
+  const rows = await fetchFromServer();
+  saveCacheRows(rows);
+  return Array.isArray(rows) ? rows.map(normalizeActivityRow) : [];
 }
 
 function normalizeActivityRow(row) {
@@ -1658,8 +1694,6 @@ function translateStaticUI() {
   document.getElementById("reset-filters").textContent =
     getText("buttons.resetFilters", "Reset filters");
 
-  document.getElementById("refresh-data").textContent =
-    getText("buttons.refreshData", "Refresh data");
 
   document.getElementById("toggle-filters-btn").title =
     getText("buttons.showHideFilters", "Show / hide filters");
@@ -1676,9 +1710,8 @@ async function loadI18n() {
 }
 
 async function refreshLiveData() {
-  sessionStorage.removeItem("unicef_activities_cache");
-  sessionStorage.removeItem("unicef_activities_cache_time");
-
+  localStorage.removeItem(CACHE_KEY);
+  localStorage.removeItem(CACHE_TIME_KEY);
   activities = await loadLiveActivities(true);
   filteredActivities = activities;
   applyFilters();
@@ -1841,7 +1874,6 @@ control.onAdd = function() {
 
     <button id="apply-filters" type="button" class="primary-btn">Застосувати фільтри</button>
     <button id="reset-filters" type="button" class="secondary-btn">Скинути фільтри</button>
-    <button id="refresh-data" type="button" class="secondary-btn">Оновити дані</button>
 
     <div id="summary-box" style="display:none;"></div>
   `;
@@ -1947,84 +1979,68 @@ async function exportMapToPng() {
   }
 }
 
-setTimeout(() => {
-  document.getElementById("activity-group-filter").addEventListener("change", () => {
-    updateActivityTypeOptions();
+// ── Делегування подій через document ────────────────────────────────
+// Кнопки і селекти знаходяться всередині Leaflet-контролу (innerHTML).
+// Щоб не залежати від порядку рендеру, ловимо події на рівні document.
+
+document.addEventListener("change", (e) => {
+  const id = e.target.id;
+  if      (id === "activity-group-filter")   { updateActivityTypeOptions(); applyFilters(); }
+  else if (id === "activity-type-filter")    applyFilters();
+  else if (id === "assistance-type-filter")  applyFilters();
+  else if (id === "metric-filter")           applyFilters();
+  else if (id === "raion-filter")    { updateHromadaOptions(); updateSettlementOptions(); applyFilters(); }
+  else if (id === "hromada-filter")  { updateSettlementOptions(); applyFilters(); }
+  else if (id === "settlement-filter")       applyFilters();
+  else if (id === "date-from-filter")        applyFilters();
+  else if (id === "date-to-filter")          applyFilters();
+  else if (["heat-radius-control","heat-blur-control","heat-opacity-control","heat-intensity-control"].includes(id))
+    updateHeatSettingsFromControls();
+});
+
+document.addEventListener("input", (e) => {
+  const id = e.target.id;
+  if (["heat-radius-control","heat-blur-control","heat-opacity-control","heat-intensity-control"].includes(id))
+    updateHeatSettingsFromControls();
+});
+
+document.addEventListener("click", (e) => {
+  const id = e.target.id;
+  if (id === "apply-filters") {
     applyFilters();
-  });
 
-  document.getElementById("activity-type-filter").addEventListener("change", applyFilters);
-  document.getElementById("assistance-type-filter").addEventListener("change", applyFilters);
-  document.getElementById("metric-filter").addEventListener("change", applyFilters);
-
-  document.getElementById("raion-filter").addEventListener("change", () => {
-    updateHromadaOptions();
-    updateSettlementOptions();
-    applyFilters();
-  });
-
-  document.getElementById("hromada-filter").addEventListener("change", () => {
-    updateSettlementOptions();
-    applyFilters();
-  });
-
-  document.getElementById("settlement-filter").addEventListener("change", applyFilters);
-  document.getElementById("date-from-filter").addEventListener("change", applyFilters);
-  document.getElementById("date-to-filter").addEventListener("change", applyFilters);
-
-  document.getElementById("apply-filters").addEventListener("click", applyFilters);
-
-  document.getElementById("toggle-filters-btn").addEventListener("click", () => {
+  } else if (id === "toggle-filters-btn") {
     document.querySelector(".control-box").classList.toggle("hidden-panel");
-  });
 
-  document.getElementById("export-png-btn").addEventListener("click", exportMapToPng);
-
-  document.getElementById("toggle-map-settings-btn").addEventListener("click", () => {
-    const layersControl = document.querySelector(".leaflet-control-layers");
-    const heatSettingsBox = document.getElementById("heat-settings-box");
-
-    if (layersControl) {
-      layersControl.classList.toggle("hidden-map-settings");
-    }
-
-    if (heatSettingsBox) {
-      heatSettingsBox.classList.toggle("hidden-heat-settings");
-    }
-  });
-
-  ["heat-radius-control", "heat-blur-control", "heat-opacity-control", "heat-intensity-control"].forEach(id => {
-    const control = document.getElementById(id);
-
-    if (control) {
-      control.addEventListener("input", updateHeatSettingsFromControls);
-    }
-  });
-
-
-  document.getElementById("refresh-data").addEventListener("click", async () => {
-    await refreshLiveData();
-  });
-
-  document.getElementById("reset-filters").addEventListener("click", () => {
+  } else if (id === "reset-filters") {
     document.getElementById("date-from-filter").value = "";
     document.getElementById("date-to-filter").value = "";
-
     document.getElementById("activity-group-filter").value = "";
     updateActivityTypeOptions();
     document.getElementById("activity-type-filter").value = "";
     document.getElementById("assistance-type-filter").value = "";
-    document.getElementById("metric-filter").value = metricsConfig.default_metric;
-
+    document.getElementById("metric-filter").value =
+      metricsConfig ? metricsConfig.default_metric : "event_count";
     document.getElementById("raion-filter").value = "";
     updateHromadaOptions();
     document.getElementById("hromada-filter").value = "";
     updateSettlementOptions();
     document.getElementById("settlement-filter").value = "";
-
     applyFilters();
-  });
 
+  } else if (id === "export-png-btn") {
+    exportMapToPng();
+
+  } else if (id === "toggle-map-settings-btn") {
+    const layersControl = document.querySelector(".leaflet-control-layers");
+    const heatSettingsBox = document.getElementById("heat-settings-box");
+    if (layersControl) layersControl.classList.toggle("hidden-map-settings");
+    if (heatSettingsBox) heatSettingsBox.classList.toggle("hidden-heat-settings");
+  }
+});
+
+setTimeout(() => {
+  // Ініціалізація мовних кнопок після рендеру Leaflet
   updateLanguageButtons();
 }, 0);
 
