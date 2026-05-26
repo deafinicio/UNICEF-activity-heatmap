@@ -1126,77 +1126,41 @@ function getBilingualLabel(key, ukFallback, enFallback) {
     : getText(key, enFallback);
 }
 
-// ── Кешування в localStorage між сесіями ────────────────────────────
-// При першому завантаженні (або після 30 хв) — запит до Google Sheets.
-// При повторному відкритті сторінки — одразу показуємо кеш,
-// і тихо оновлюємо дані у фоні, якщо кеш старший за 30 хв.
-
-const CACHE_KEY      = "unicef_activities_v2";
-const CACHE_TIME_KEY = "unicef_activities_v2_time";
-const CACHE_TTL      = 30 * 60 * 1000; // 30 хвилин
-
-function getCachedRows() {
-  try {
-    const raw  = localStorage.getItem(CACHE_KEY);
-    const time = localStorage.getItem(CACHE_TIME_KEY);
-    if (!raw || !time) return null;
-    return { rows: JSON.parse(raw), time: parseInt(time, 10) };
-  } catch { return null; }
-}
-
-function saveCacheRows(rows) {
-  try {
-    localStorage.setItem(CACHE_KEY, JSON.stringify(rows));
-    localStorage.setItem(CACHE_TIME_KEY, Date.now().toString());
-  } catch (e) {
-    // localStorage переповнений — ігноруємо
-    console.warn("Cache write failed:", e.message);
-  }
-}
-
-async function fetchFromServer() {
-  const response = await fetch(APPS_SCRIPT_DATA_URL + "?nocache=" + Date.now());
-  if (!response.ok) throw new Error("Не вдалося завантажити дані з Google Sheets (HTTP " + response.status + ")");
-  return await response.json();
-}
-
 async function loadLiveActivities(forceRefresh = false) {
-  const cached = getCachedRows();
+  const CACHE_KEY = "unicef_activities_cache";
+  const CACHE_TIME_KEY = "unicef_activities_cache_time";
+  const CACHE_TTL = 30 * 60 * 1000; // 30 хвилин
 
-  // Є свіжий кеш і не примусове оновлення — одразу повертаємо
-  if (!forceRefresh && cached && (Date.now() - cached.time < CACHE_TTL)) {
-    return Array.isArray(cached.rows) ? cached.rows.map(normalizeActivityRow) : [];
+  if (!forceRefresh) {
+    const cachedData = sessionStorage.getItem(CACHE_KEY);
+    const cachedTime = sessionStorage.getItem(CACHE_TIME_KEY);
+
+    if (
+      cachedData &&
+      cachedTime &&
+      Date.now() - parseInt(cachedTime, 10) < CACHE_TTL
+    ) {
+      const rows = JSON.parse(cachedData);
+      return Array.isArray(rows)
+        ? rows.map(normalizeActivityRow)
+        : [];
+    }
   }
 
-  // Є старий кеш — показуємо його одразу, а свіжі дані тягнемо у фоні
-  if (!forceRefresh && cached) {
-    const staleRows = Array.isArray(cached.rows) ? cached.rows.map(normalizeActivityRow) : [];
+  const response = await fetch(APPS_SCRIPT_DATA_URL + "?nocache=" + Date.now());
 
-    // Фоновий запит — не блокує рендер
-    fetchFromServer().then(rows => {
-      saveCacheRows(rows);
-      activities = Array.isArray(rows) ? rows.map(normalizeActivityRow) : [];
-      filteredActivities = activities;
-      applyFilters();
-      // Показуємо дискретну підказку що дані оновились
-      const bar = document.getElementById("stats-bottom-bar");
-      if (bar) {
-        const hint = document.createElement("span");
-        hint.style.cssText = "position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:11px;opacity:.55;";
-        hint.textContent = "↺ оновлено";
-        bar.style.position = "relative";
-        bar.appendChild(hint);
-        setTimeout(() => hint.remove(), 3000);
-      }
-    }).catch(err => console.warn("Фонове оновлення не вдалося:", err.message));
-
-    return staleRows;
+  if (!response.ok) {
+    throw new Error("Failed to load activities from Google Sheets");
   }
 
-  // Кешу немає зовсім — чекаємо на сервер (перший запуск)
-  const rows = await fetchFromServer();
-  saveCacheRows(rows);
-  return Array.isArray(rows) ? rows.map(normalizeActivityRow) : [];
+  const rows = await response.json();
+
+  sessionStorage.setItem(CACHE_KEY, JSON.stringify(rows));
+  sessionStorage.setItem(CACHE_TIME_KEY, Date.now().toString());
+
+  return Array.isArray(rows)
+    ? rows.map(normalizeActivityRow)
+    : [];
 }
 
 function normalizeActivityRow(row) {
@@ -1710,8 +1674,9 @@ async function loadI18n() {
 }
 
 async function refreshLiveData() {
-  localStorage.removeItem(CACHE_KEY);
-  localStorage.removeItem(CACHE_TIME_KEY);
+  sessionStorage.removeItem("unicef_activities_cache");
+  sessionStorage.removeItem("unicef_activities_cache_time");
+
   activities = await loadLiveActivities(true);
   filteredActivities = activities;
   applyFilters();
@@ -1979,38 +1944,45 @@ async function exportMapToPng() {
   }
 }
 
-// ── Делегування подій через document ────────────────────────────────
-// Кнопки і селекти знаходяться всередині Leaflet-контролу (innerHTML).
-// Щоб не залежати від порядку рендеру, ловимо події на рівні document.
+// Делегування подій на document — надійно працює з Leaflet-контролами,
+// які будують HTML динамічно і можуть з'явитись в DOM пізніше ніж setTimeout.
 
 document.addEventListener("change", (e) => {
   const id = e.target.id;
-  if      (id === "activity-group-filter")   { updateActivityTypeOptions(); applyFilters(); }
-  else if (id === "activity-type-filter")    applyFilters();
-  else if (id === "assistance-type-filter")  applyFilters();
-  else if (id === "metric-filter")           applyFilters();
+  if      (id === "activity-group-filter")  { updateActivityTypeOptions(); applyFilters(); }
+  else if (id === "activity-type-filter")   applyFilters();
+  else if (id === "assistance-type-filter") applyFilters();
+  else if (id === "metric-filter")          applyFilters();
   else if (id === "raion-filter")    { updateHromadaOptions(); updateSettlementOptions(); applyFilters(); }
   else if (id === "hromada-filter")  { updateSettlementOptions(); applyFilters(); }
-  else if (id === "settlement-filter")       applyFilters();
-  else if (id === "date-from-filter")        applyFilters();
-  else if (id === "date-to-filter")          applyFilters();
-  else if (["heat-radius-control","heat-blur-control","heat-opacity-control","heat-intensity-control"].includes(id))
-    updateHeatSettingsFromControls();
+  else if (id === "settlement-filter")      applyFilters();
+  else if (id === "date-from-filter")       applyFilters();
+  else if (id === "date-to-filter")         applyFilters();
 });
 
 document.addEventListener("input", (e) => {
-  const id = e.target.id;
-  if (["heat-radius-control","heat-blur-control","heat-opacity-control","heat-intensity-control"].includes(id))
+  if (["heat-radius-control","heat-blur-control","heat-opacity-control","heat-intensity-control"].includes(e.target.id))
     updateHeatSettingsFromControls();
 });
 
 document.addEventListener("click", (e) => {
   const id = e.target.id;
+
   if (id === "apply-filters") {
     applyFilters();
 
   } else if (id === "toggle-filters-btn") {
     document.querySelector(".control-box").classList.toggle("hidden-panel");
+
+  } else if (id === "export-png-btn") {
+    exportMapToPng();
+
+  } else if (id === "toggle-map-settings-btn") {
+    const layersControl = document.querySelector(".leaflet-control-layers");
+    const heatSettingsBox = document.getElementById("heat-settings-box");
+    if (layersControl) layersControl.classList.toggle("hidden-map-settings");
+    if (heatSettingsBox) heatSettingsBox.classList.toggle("hidden-heat-settings");
+
 
   } else if (id === "reset-filters") {
     document.getElementById("date-from-filter").value = "";
@@ -2027,20 +1999,10 @@ document.addEventListener("click", (e) => {
     updateSettlementOptions();
     document.getElementById("settlement-filter").value = "";
     applyFilters();
-
-  } else if (id === "export-png-btn") {
-    exportMapToPng();
-
-  } else if (id === "toggle-map-settings-btn") {
-    const layersControl = document.querySelector(".leaflet-control-layers");
-    const heatSettingsBox = document.getElementById("heat-settings-box");
-    if (layersControl) layersControl.classList.toggle("hidden-map-settings");
-    if (heatSettingsBox) heatSettingsBox.classList.toggle("hidden-heat-settings");
   }
 });
 
 setTimeout(() => {
-  // Ініціалізація мовних кнопок після рендеру Leaflet
   updateLanguageButtons();
 }, 0);
 
