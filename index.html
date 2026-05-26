@@ -490,6 +490,81 @@
 </head>
 
 <body>
+
+<!-- ═══ LOADING OVERLAY ═══════════════════════════════════════════════ -->
+<style>
+  #loading-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: #0f172a;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 22px;
+    transition: opacity 0.45s ease;
+  }
+  #loading-overlay.fade-out {
+    opacity: 0;
+    pointer-events: none;
+  }
+  #loading-overlay.hidden {
+    display: none;
+  }
+  .loading-logo {
+    width: 72px;
+    height: 72px;
+    background: url('assets/favicon.png') center/contain no-repeat;
+    filter: brightness(0) invert(1);
+    opacity: 0.85;
+  }
+  .loading-spinner {
+    width: 42px;
+    height: 42px;
+    border: 3px solid rgba(255,255,255,0.15);
+    border-top-color: #38bdf8;
+    border-radius: 50%;
+    animation: spin 0.75s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-text {
+    font-family: Inter, Arial, sans-serif;
+    font-size: 14px;
+    color: rgba(255,255,255,0.55);
+    letter-spacing: 0.03em;
+    text-align: center;
+    min-height: 20px;
+    transition: opacity 0.2s;
+  }
+  .loading-steps {
+    display: flex;
+    gap: 6px;
+    margin-top: -8px;
+  }
+  .loading-step {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.2);
+    transition: background 0.3s;
+  }
+  .loading-step.done { background: #38bdf8; }
+  .loading-step.active { background: rgba(56,189,248,0.5); }
+</style>
+
+<div id="loading-overlay">
+  <div class="loading-logo"></div>
+  <div class="loading-spinner"></div>
+  <div class="loading-text" id="loading-message">Завантаження...</div>
+  <div class="loading-steps">
+    <div class="loading-step" id="step-1"></div>
+    <div class="loading-step" id="step-2"></div>
+    <div class="loading-step" id="step-3"></div>
+  </div>
+</div>
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+
 <div id="map"></div>
 
 <div id="heat-settings-box" class="heat-settings-box hidden-heat-settings">
@@ -520,12 +595,13 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
-<script src="https://leaflet.github.io/Leaflet.heat/dist/leaflet-heat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 
 <script>
 const PATHS = {
   settlements: "data/kharkiv_settlements_points.geojson",
+  gromada: "data/gromada.geojson",
   activityGroups: "config/activity-groups.json",
   metrics: "config/metrics.json",
   i18nUk: "i18n/uk.json",
@@ -1053,7 +1129,7 @@ function getBilingualLabel(key, ukFallback, enFallback) {
 async function loadLiveActivities(forceRefresh = false) {
   const CACHE_KEY = "unicef_activities_cache";
   const CACHE_TIME_KEY = "unicef_activities_cache_time";
-  const CACHE_TTL = 5 * 60 * 1000;
+  const CACHE_TTL = 30 * 60 * 1000; // 30 хвилин
 
   if (!forceRefresh) {
     const cachedData = sessionStorage.getItem(CACHE_KEY);
@@ -1626,13 +1702,44 @@ async function switchLanguage(newLang) {
   applyFilters();
 }
 
-async function init() {
-  await loadI18n();
+// ── Loading overlay helpers ──────────────────────────────────────────
+function setLoadingMessage(msg, stepDone) {
+  const el = document.getElementById("loading-message");
+  if (el) el.textContent = msg;
+  if (stepDone !== undefined) {
+    for (let i = 1; i <= 3; i++) {
+      const s = document.getElementById("step-" + i);
+      if (!s) continue;
+      s.className = "loading-step" + (i < stepDone ? " done" : i === stepDone ? " active" : "");
+    }
+  }
+}
 
-  const [settlements, groups, metrics] = await Promise.all([
-    fetch(PATHS.settlements).then(r => r.json()),
-    fetch(PATHS.activityGroups).then(r => r.json()),
-    fetch(PATHS.metrics).then(r => r.json())
+function hideLoadingOverlay() {
+  const overlay = document.getElementById("loading-overlay");
+  if (!overlay) return;
+  overlay.classList.add("fade-out");
+  setTimeout(() => overlay.classList.add("hidden"), 500);
+}
+
+async function init() {
+  // Крок 1: мова + геодані + конфіги — паралельно
+  setLoadingMessage(lang === "uk" ? "Завантаження мови та геоданих…" : "Loading language and geo data…", 1);
+
+  const [, settlements, groups, metrics] = await Promise.all([
+    loadI18n(),
+    fetch(PATHS.settlements).then(r => {
+      if (!r.ok) throw new Error("Не вдалося завантажити settlements.geojson");
+      return r.json();
+    }),
+    fetch(PATHS.activityGroups).then(r => {
+      if (!r.ok) throw new Error("Не вдалося завантажити activity-groups.json");
+      return r.json();
+    }),
+    fetch(PATHS.metrics).then(r => {
+      if (!r.ok) throw new Error("Не вдалося завантажити metrics.json");
+      return r.json();
+    })
   ]);
 
   settlementsGeo = settlements;
@@ -1640,14 +1747,40 @@ async function init() {
   metricsConfig = metrics;
 
   buildLocationIndex();
+  translateStaticUI();
+  populateControls();
+  populateLocationControls();
+
+  // Крок 2: живі дані з Google Sheets
+  setLoadingMessage(lang === "uk" ? "Завантаження активностей з Google Sheets…" : "Loading activities from Google Sheets…", 2);
 
   activities = await loadLiveActivities();
   filteredActivities = activities;
 
-  translateStaticUI();
-  populateControls();
-  populateLocationControls();
+  // Крок 3: рендер карти
+  setLoadingMessage(lang === "uk" ? "Побудова карти…" : "Building map…", 3);
   applyFilters();
+
+  hideLoadingOverlay();
+
+  // Lazy-load границь громад у фоні — не блокує рендер
+  if (PATHS.gromada) {
+    fetch(PATHS.gromada)
+      .then(r => r.ok ? r.json() : null)
+      .then(geojson => {
+        if (!geojson) return;
+        L.geoJSON(geojson, {
+          style: {
+            color: "#3b82f6",
+            weight: 1.2,
+            opacity: 0.55,
+            fillOpacity: 0
+          },
+          interactive: false
+        }).addTo(map);
+      })
+      .catch(() => { /* не критично */ });
+  }
 }
 
 const control = L.control({ position: "topright" });
@@ -1897,8 +2030,20 @@ setTimeout(() => {
 
 init().catch(error => {
   console.error(error);
-  document.getElementById("stats-bottom-bar").innerHTML =
-    `<b>Initialization error</b><br>${error.message}`;
+  const overlay = document.getElementById("loading-overlay");
+  if (overlay) {
+    const spinner = overlay.querySelector(".loading-spinner");
+    if (spinner) spinner.style.display = "none";
+    const msg = document.getElementById("loading-message");
+    if (msg) {
+      msg.style.color = "#f87171";
+      msg.style.maxWidth = "280px";
+      msg.innerHTML = `⚠️ Помилка завантаження:<br><small>${error.message}</small><br><br><small style="opacity:.6">Перевірте з'єднання та оновіть сторінку (F5)</small>`;
+    }
+  } else {
+    document.getElementById("stats-bottom-bar").innerHTML =
+      `<b>Помилка завантаження</b><br>${error.message}`;
+  }
 });
 </script>
 </body>
